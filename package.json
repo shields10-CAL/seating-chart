@@ -1,0 +1,26 @@
+{
+  "name": "cal-seating-chart",
+  "version": "2.8.0",
+  "private": true,
+  "type": "module",
+  "description": "CAL teacher seating chart with drawn-room layouts, local accounts, SQLite persistence, and a Material-inspired UI.",
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "dev": "node --watch --env-file=.env server.js",
+    "auth:migrate": "auth migrate --config ./auth.js",
+    "auth:create-admin": "auth create-admin --config ./auth.js",
+    "auth:check": "auth check --config ./auth.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "better-auth": "1.7.17",
+    "better-sqlite3": "13.0.3",
+    "express": "5.3.0",
+    "helmet": "8.3.0"
+  },
+  "devDependencies": {
+    "auth": "1.7.10"
+  }
+}
