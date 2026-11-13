@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#FEE04A" />
+  <title>Draw Seating Chart</title>
+  <link rel="stylesheet" href="/static/draw-chart/styles.css" />
+  <link rel="stylesheet" href="/static/draw-chart/layout.css" />
+</head>
+<body>
+  <header class="appbar">
+    <div class="title-block">
+      <h1>Draw Seating Chart</h1>
+    </div>
+
+    <div class="edit-toolbar" role="toolbar" aria-label="Edit toolbar">
+      <button class="icon-button active" id="selectBtn" type="button" title="Select / Move" aria-label="Select / Move" aria-pressed="true">
+        <svg viewBox="0 0 24 24"><path d="M5 3.5v15.2l4.1-4.1 2.8 6.1 2.2-1-2.8-6.1h5.8L5 3.5Z"/></svg>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button class="icon-button" id="undoBtn" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled>
+        <svg viewBox="0 0 24 24"><path d="M7.4 7H14a6 6 0 1 1 0 12h-4v-2h4a4 4 0 1 0 0-8H7.4l3.3 3.3-1.4 1.4L3.6 8l5.7-5.7 1.4 1.4L7.4 7Z"/></svg>
+      </button>
+      <button class="icon-button" id="redoBtn" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled>
+        <svg viewBox="0 0 24 24"><path d="M16.6 7H10a6 6 0 1 0 0 12h4v-2h-4a4 4 0 1 1 0-8h6.6l-3.3 3.3 1.4 1.4L20.4 8l-5.7-5.7-1.4 1.4L16.6 7Z"/></svg>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button class="icon-button" id="cutBtn" type="button" title="Cut (Ctrl/Cmd+X)" aria-label="Cut" disabled>
+        <svg viewBox="0 0 24 24"><path d="M6 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-2a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 14a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-2a2 2 0 1 1 0-4 2 2 0 0 1 0 4ZM8.83 8.83 18 18h2v-2L10.24 7.24 8.83 8.83Zm2.82 4.24-2.82 2.82 1.41 1.41 2.83-2.82-1.42-1.41ZM18 4l-4.07 4.07 1.41 1.42L20 4.83V4h-2Z"/></svg>
+      </button>
+      <button class="icon-button" id="copyBtn" type="button" title="Copy (Ctrl/Cmd+C)" aria-label="Copy" disabled>
+        <svg viewBox="0 0 24 24"><path d="M8 7V3h13v13h-4v5H3V7h5Zm2 0h7v7h2V5h-9v2Zm5 2H5v10h10V9Z"/></svg>
+      </button>
+      <button class="icon-button" id="pasteBtn" type="button" title="Paste (Ctrl/Cmd+V)" aria-label="Paste" disabled>
+        <svg viewBox="0 0 24 24"><path d="M9 3h6a2 2 0 0 1 2 2h3v16H4V5h3a2 2 0 0 1 2-2Zm0 2v2h6V5H9ZM6 7v12h12V7h-1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2H6Z"/></svg>
+      </button>
+      <button class="toolbar-button merge-button" id="mergeBtn" type="button" hidden>
+        <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7 7h7v7h-7v-7Zm2 2v3h3v-3h-3Zm-4-2h2v-2h2V9h-2V7h-2v2H9v2h2v2Z"/></svg>
+        <span>Merge</span>
+      </button>
+    </div>
+
+    <button class="done-button" id="saveBtn" type="button" title="Done" aria-label="Done">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 16.6-4.4-4.4 1.4-1.4 3 3 8.6-8.6 1.4 1.4-10 10Z"/></svg>
+      <span>Done</span>
+    </button>
+  </header>
+
+  <main class="workspace">
+    <aside class="toolbox" aria-label="Layout tools">
+      <section class="toolbox-section first">
+        <div class="section-label">OBJECTS</div>
+        <div class="placement-tools" role="toolbar" aria-label="Placement tools">
+          <button class="placement-tool table-tool" type="button" data-tool="table" aria-pressed="false">
+            <span class="tool-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v3H4V6Zm2 4h2l-1 8H5l1-8Zm10 0h2l1 8h-2l-1-8Z"/></svg></span>
+            <span><strong>Table</strong><small>Click or drag to place</small></span>
+          </button>
+          <button class="placement-tool seat-tool" type="button" data-tool="seat" aria-pressed="false">
+            <span class="tool-icon"><svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v6h-2V5H7v6H5V5a2 2 0 0 1 2-2Zm-2 9h14a2 2 0 0 1 2 2v3h-2v4h-2v-4H7v4H5v-4H3v-3a2 2 0 0 1 2-2Zm0 2v1h14v-1H5Z"/></svg></span>
+            <span><strong>Seat</strong><small>Click or drag to place</small></span>
+          </button>
+          <button class="placement-tool door-tool" type="button" data-tool="door" aria-pressed="false">
+            <span class="tool-icon"><svg viewBox="0 0 24 24"><path d="M5 3h11v18H5V3Zm2 2v14h7V5H7Zm4 6.25a1 1 0 1 1 0 1.5 1 1 0 0 1 0-1.5ZM18 6h2v15h-2V6Z"/></svg></span>
+            <span><strong>Door</strong><small>Click or drag to place</small></span>
+          </button>
+          <button class="placement-tool desk-tool" type="button" data-tool="desk" aria-pressed="false">
+            <span class="tool-icon"><svg viewBox="0 0 24 24"><path d="M3 5h18v7H3V5Zm2 2v3h14V7H5Zm0 6h3v7H6v-5H5v-2Zm11 0h3v2h-1v5h-2v-7Z"/></svg></span>
+            <span><strong>Teacher Desk</strong><small>Click or drag to place</small></span>
+          </button>
+          <button class="placement-tool projector-tool" type="button" data-tool="projector" aria-pressed="false">
+            <span class="tool-icon"><svg viewBox="0 0 24 24"><path d="M3 4h18v12H3V4Zm2 2v8h14V6H5Zm6 11h2v2h5v2H6v-2h5v-2Z"/></svg></span>
+            <span><strong>Projector Screen</strong><small>Click or drag to place</small></span>
+          </button>
+          <button class="placement-tool erase-tool" type="button" data-tool="erase" aria-pressed="false">
+            <span class="tool-icon"><svg viewBox="0 0 24 24"><path d="m16.24 3.56 4.2 4.2a2 2 0 0 1 0 2.83L11.03 20H5.41l-2.82-2.83a2 2 0 0 1 0-2.83l10.82-10.78a2 2 0 0 1 2.83 0ZM6.24 18h3.96l3.66-3.66-5.4-5.4-4.46 4.4a1 1 0 0 0 0 1.42L6.24 18Z"/></svg></span>
+            <span><strong>Erase</strong><small>Remove objects</small></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="toolbox-section">
+        <div class="section-label">ROOM GRID</div>
+        <div class="grid-settings">
+          <label><span>Width (squares)</span><input id="gridColumns" type="number" min="8" max="60" value="24" /></label>
+          <label><span>Depth (squares)</span><input id="gridRows" type="number" min="6" max="50" value="16" /></label>
+        </div>
+        <div class="room-size" id="roomSize">Room: 24 × 16 squares</div>
+      </section>
+
+      <section class="toolbox-section footer-actions">
+        <button class="outlined-button danger" id="clearBtn" type="button">Clear room</button>
+      </section>
+    </aside>
+
+    <section class="stage" aria-label="Classroom layout editor">
+      <div class="canvas-shell" id="canvasShell">
+        <div class="layout-grid" id="layoutGrid" role="grid" aria-label="Classroom layout grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="context-menu" id="contextMenu" role="menu" hidden>
+    <button type="button" data-action="copy" role="menuitem"><span>Copy</span><kbd>⌘/Ctrl C</kbd></button>
+    <button type="button" data-action="cut" role="menuitem"><span>Cut</span><kbd>⌘/Ctrl X</kbd></button>
+    <button type="button" data-action="rename" role="menuitem"><span>Rename</span></button>
+    <div class="context-separator"></div>
+    <button class="danger-item" type="button" data-action="delete" role="menuitem"><span>Delete</span><kbd>Del</kbd></button>
+  </div>
+
+  <dialog class="rename-dialog" id="renameDialog">
+    <form method="dialog" id="renameForm">
+      <h2>Rename object</h2>
+      <label><span>Name</span><input id="renameInput" maxlength="60" autocomplete="off" /></label>
+      <div class="dialog-actions">
+        <button class="text-button" value="cancel" type="button" id="renameCancel">Cancel</button>
+        <button class="filled-button" value="save" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="snackbar" id="snackbar" role="status" aria-live="polite"></div>
+  <script src="/static/draw-chart/integration.js"></script>
+  <script src="/static/draw-chart/app.js"></script>
+</body>
+</html>
