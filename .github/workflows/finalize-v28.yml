@@ -1,0 +1,42 @@
+name: Finalize v2.8 source
+
+on:
+  push:
+    branches:
+      - upload-v28-clean
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild exact source and collapse branch history
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat .bootstrap/source.part.* | base64 --decode > /tmp/seating-chart-source.zip
+          echo "489cdef90aad70f9cfa4d68c8ee33709be8329a1e2628384b638976865eb39b9  /tmp/seating-chart-source.zip" | sha256sum -c -
+
+          git fetch origin main
+          git reset --hard origin/main
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+
+          unzip -o /tmp/seating-chart-source.zip -d .
+
+          test ! -f .env
+          test ! -f data/seating.sqlite
+          test ! -f seating.sqlite
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "Add Seating Chart v2.8 source"
+          git push --force origin HEAD:upload-v28-clean
