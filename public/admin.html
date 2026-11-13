@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#FEE04A" />
+  <title>Admin · CAL Seating Chart</title>
+  <link rel="stylesheet" href="/static/styles.css?v=2.8.0" />
+</head>
+<body class="admin-page">
+  <main class="admin-shell">
+    <header class="admin-appbar">
+      <div class="admin-brand">
+        <img src="/static/assets/cal-logo.png" alt="CAL" />
+        <div>
+          <div class="eyebrow">SEATING CHART</div>
+          <h1>Admin panel</h1>
+        </div>
+      </div>
+      <div class="admin-actions">
+        <a class="outlined-button admin-link-button" href="/">Back to seating chart</a>
+        <button class="outlined-button" id="adminSignOut" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <section class="admin-card school-config-card">
+      <div class="admin-card-heading">
+        <div>
+          <h2>School calendar & bell schedule</h2>
+          <p>These settings are shared by every teacher account. Upload a new school year without changing the app code.</p>
+        </div>
+      </div>
+
+      <div class="school-config-grid">
+        <div class="school-config-panel">
+          <div class="config-panel-top">
+            <div>
+              <span class="config-kicker">BELL SCHEDULE</span>
+              <h3>Daily bell times</h3>
+            </div>
+            <span class="status-chip disabled" id="bellScheduleStatus">Not configured</span>
+          </div>
+          <p>CSV rows can define regular, late-start, 2-hour-late, all-periods, and late-start all-periods schedules.</p>
+          <div class="config-actions">
+            <a class="outlined-button admin-link-button" href="/static/templates/bell-schedule-template.csv" download>Download template</a>
+            <button class="filled-button" id="uploadBellScheduleBtn" type="button">Upload bell schedule</button>
+            <input id="bellScheduleFile" class="visually-hidden" type="file" accept=".csv,text/csv" />
+          </div>
+          <div class="config-detail" id="bellScheduleDetail">No bell schedule uploaded.</div>
+        </div>
+
+        <div class="school-config-panel">
+          <div class="config-panel-top">
+            <div>
+              <span class="config-kicker">A/B CALENDAR</span>
+              <h3>School-year calendar</h3>
+            </div>
+            <span class="status-chip disabled" id="calendarStatus">Not configured</span>
+          </div>
+          <p>Each date can specify A/B day, no-school/special status, and an optional schedule override.</p>
+          <div class="config-actions">
+            <a class="outlined-button admin-link-button" href="/static/templates/ab-calendar-template.csv" download>Download template</a>
+            <button class="filled-button" id="uploadCalendarBtn" type="button">Upload A/B calendar</button>
+            <input id="calendarFile" class="visually-hidden" type="file" accept=".csv,text/csv" />
+          </div>
+          <div class="config-detail" id="calendarDetail">No calendar uploaded.</div>
+        </div>
+      </div>
+
+      <div class="late-start-settings">
+        <div>
+          <span class="config-kicker">RECURRING LATE START</span>
+          <h3>Which days normally use the late-start bell schedule?</h3>
+          <p>The calendar CSV can still override an individual date.</p>
+        </div>
+        <div class="weekday-options" id="lateStartDays">
+          <label><input type="checkbox" value="1" /> Monday</label>
+          <label><input type="checkbox" value="2" /> Tuesday</label>
+          <label><input type="checkbox" value="3" /> Wednesday</label>
+          <label><input type="checkbox" value="4" /> Thursday</label>
+          <label><input type="checkbox" value="5" /> Friday</label>
+        </div>
+        <button class="outlined-button" id="saveLateStartDaysBtn" type="button">Save late-start days</button>
+        <div class="config-detail" id="lateStartDetail"></div>
+      </div>
+      <div class="form-error" id="schoolConfigMessage" role="status"></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Create teacher account</h2>
+      <p>Accounts are admin-created only. New teachers start with no classes. School-wide calendar and bell settings are managed above.</p>
+      <form class="admin-create-grid" id="createUserForm">
+        <label class="field"><span>Name</span><input id="newUserName" autocomplete="off" required /></label>
+        <label class="field"><span>Email</span><input id="newUserEmail" type="email" autocomplete="off" required /></label>
+        <label class="field"><span>Temporary password</span><input id="newUserPassword" type="password" minlength="10" autocomplete="new-password" required /></label>
+        <button class="filled-button" type="submit">Create user</button>
+      </form>
+      <div class="form-error" id="adminMessage" role="status"></div>
+    </section>
+
+    <section class="admin-card">
+      <h2>Teacher accounts</h2>
+      <p>Disable an account to block sign-in without deleting its seating-chart data.</p>
+      <div class="user-table-wrap">
+        <table class="user-table">
+          <thead><tr><th>Teacher</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody id="userRows"><tr><td colspan="5">Loading users…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/admin.js?v=2.8.0"></script>
+</body>
+</html>
