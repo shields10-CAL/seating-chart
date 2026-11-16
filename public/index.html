@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f6f7fb" />
+  <title>Classroom Seating Chart</title>
+  <link rel="stylesheet" href="/static/styles.css?v=2.8.0" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Classroom controls">
+      <div class="sidebar-brand">
+        <img src="/static/assets/cal-logo.png" alt="CAL" />
+        <div class="sidebar-brand-copy">
+          <strong>Seating Chart</strong>
+          <span id="signedInAs">Teacher</span>
+        </div>
+      </div>
+
+      <section class="sidebar-card clock-card" aria-live="polite">
+        <div class="clock-time" id="clockTime">--:--</div>
+        <div class="clock-date" id="clockDate">Loading date…</div>
+      </section>
+
+      <button class="day-card a-day" id="dayToggle" type="button" aria-label="Day and schedule options" title="Day and schedule options">
+        <span class="day-dot" aria-hidden="true"></span>
+        <span id="dayLabel">A-Day</span>
+        <span class="day-gear" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.35 7.35 0 0 0-1.63-.95L14.37 2.8a.5.5 0 0 0-.5-.4h-3.84a.5.5 0 0 0-.49.4l-.37 2.51c-.58.24-1.13.56-1.63.95l-2.39-.96a.5.5 0 0 0-.61.22L2.62 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.05.31-.08.64-.08.94s.03.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.4 1.05.72 1.63.95l.37 2.51a.5.5 0 0 0 .49.4h3.84a.5.5 0 0 0 .5-.4l.36-2.51a7.35 7.35 0 0 0 1.63-.95l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.02-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
+        </span>
+      </button>
+
+      <section class="sidebar-card schedule-card">
+        <div class="card-heading-row">
+          <span class="overline">BELL SCHEDULE</span>
+          <button class="icon-button" id="scheduleGear" type="button" aria-label="Schedule options" title="Schedule options">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.35 7.35 0 0 0-1.63-.95L14.37 2.8a.5.5 0 0 0-.5-.4h-3.84a.5.5 0 0 0-.49.4l-.37 2.51c-.58.24-1.13.56-1.63.95l-2.39-.96a.5.5 0 0 0-.61.22L2.62 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.05.31-.08.64-.08.94s.03.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.4 1.05.72 1.63.95l.37 2.51a.5.5 0 0 0 .49.4h3.84a.5.5 0 0 0 .5-.4l.36-2.51a7.35 7.35 0 0 0 1.63-.95l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.02-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
+          </button>
+        </div>
+        <div class="schedule-status" id="scheduleStatus">Checking schedule…</div>
+        <div class="schedule-time" id="scheduleTime">--:--</div>
+        <div class="schedule-remaining" id="scheduleRemaining">&nbsp;</div>
+        <div class="schedule-mode" id="scheduleModeLabel">Auto schedule</div>
+      </section>
+
+      <button class="attendance-reminder" id="attendanceReminder" type="button" hidden aria-live="assertive">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5-6.71V3a2 2 0 1 0-4 0v1.29A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg>
+        <span class="attendance-copy">
+          <strong>Attendance taken?</strong>
+          <small id="attendanceReminderDetail">Tap to dismiss for this period</small>
+        </span>
+      </button>
+
+      <button class="projector-button" id="sidebarFocusBtn" type="button" aria-pressed="false">
+        <svg class="focus-expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3Zm-2-4h2V7h3V5H5v5Zm12 7h-3v2h5v-5h-2v3Zm-3-12v2h3v3h2V5h-5Z"/></svg>
+        <svg class="focus-collapse-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h3v3h2v-5H5v2Zm3-8H5v2h5V5H8v3Zm6 11h2v-3h3v-2h-5v5Zm2-11V5h-2v5h5V8h-3Z"/></svg>
+        <span id="sidebarFocusLabel">Full-screen info</span>
+      </button>
+
+      <div class="sidebar-spacer"></div>
+
+      <button class="shuffle-button" id="shuffleBtn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41ZM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5Zm.33 9.42-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.12Z"/></svg>
+        <span>SHUFFLE</span>
+      </button>
+
+      <button class="dashboard-button" id="openDashboardBtn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z"/></svg>
+        Teacher dashboard
+      </button>
+
+
+
+      <div class="account-actions">
+        <a class="account-action" id="adminPanelLink" href="/admin" hidden>
+          <span aria-hidden="true">⚙</span> Admin panel
+        </a>
+        <button class="account-action" id="signOutBtn" type="button">
+          <span aria-hidden="true">↪</span> Sign out
+        </button>
+      </div>
+    </aside>
+    <div class="sidebar-resizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">SEATING CHART</div>
+          <h1 id="classTitle">Seniors</h1>
+        </div>
+        <div class="topbar-chip" id="studentCountChip">0 students</div>
+      </header>
+
+      <section class="room" aria-label="Classroom seating chart">
+        <div class="chartroom-stage" id="tableGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="class-fab-bar" id="classFabBar" aria-label="Switch class"></nav>
+
+  <dialog class="dialog dashboard-dialog" id="dashboardDialog">
+    <form method="dialog" class="dialog-frame" id="dashboardForm">
+      <div class="dialog-header">
+        <div>
+          <div class="eyebrow">TEACHER CONTROLS</div>
+          <h2>Class dashboard</h2>
+          <p id="dashboardClassSubtitle">Class setup</p>
+        </div>
+        <button class="icon-button dialog-close" value="cancel" aria-label="Close dashboard" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18.3 5.71-1.41-1.42L12 9.17 7.11 4.29 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.42L12 12.01l4.89 4.9 1.41-1.42-4.89-4.89 4.89-4.89Z"/></svg>
+        </button>
+      </div>
+
+      <div class="dashboard-scroll">
+        <section class="dashboard-section compact-section">
+          <div class="inline-form class-name-editor">
+            <label class="field grow">
+              <span>Class name</span>
+              <input id="currentClassName" type="text" autocomplete="off" />
+            </label>
+            <button class="outlined-button" id="renameClassBtn" type="button">Rename</button>
+            <button class="outlined-button danger-outline" id="deleteClassBtn" type="button">Delete class</button>
+          </div>
+        </section>
+
+        <div class="class-setup-grid">
+          <section class="setup-card" id="rosterSetupCard">
+            <div class="setup-card-heading">
+              <div>
+                <div class="setup-kicker">1 · ROSTER</div>
+                <h3>Roster</h3>
+              </div>
+              <span class="setup-status" id="rosterSetupStatus">Missing</span>
+            </div>
+            <p id="rosterSetupDetail">Import a CSV roster before shuffling seats.</p>
+            <div class="button-row wrap">
+              <button class="filled-button" id="importCsvBtn" type="button">Import CSV</button>
+              <button class="outlined-button" id="downloadCsvTemplateBtn" type="button">CSV template</button>
+            </div>
+            <input id="csvFileInput" type="file" accept=".csv,text/csv" hidden />
+          </section>
+
+          <section class="setup-card" id="seatingSetupCard">
+            <div class="setup-card-heading">
+              <div>
+                <div class="setup-kicker">2 · SEATING CHART</div>
+                <h3>Seating Chart</h3>
+              </div>
+              <span class="setup-status" id="seatingSetupStatus">Missing</span>
+            </div>
+            <p id="seatingSetupDetail">Draw the room and place numbered student seats.</p>
+            <div class="button-row wrap">
+              <button class="filled-button" id="editSeatingChartBtn" type="button">Draw seating chart</button>
+            </div>
+          </section>
+        </div>
+
+        <section class="dashboard-section">
+          <div class="section-title-row">
+            <div>
+              <h3>Fixed seating</h3>
+              <p>Add only the students who must stay in a specific seat. The list is empty by default.</p>
+            </div>
+          </div>
+          <div class="fixed-seat-builder">
+            <label class="field grow">
+              <span>Student</span>
+              <select id="fixedSeatStudent"></select>
+            </label>
+            <label class="field fixed-seat-field">
+              <span>Seat</span>
+              <select id="fixedSeatNumber"></select>
+            </label>
+            <button class="filled-button" id="addFixedSeatBtn" type="button">Add fixed seat</button>
+          </div>
+          <div class="fixed-seat-list" id="fixedSeatList"></div>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-title-row">
+            <div>
+              <h3>Separation pool</h3>
+              <p>Students in this pool are kept at different table groups and may never occupy neighboring grid squares, including diagonals.</p>
+            </div>
+          </div>
+          <div class="separation-builder">
+            <label class="field grow">
+              <span>Add student</span>
+              <select id="separationPoolStudent"></select>
+            </label>
+            <button class="filled-button" id="addSeparationPoolBtn" type="button">Add to pool</button>
+          </div>
+          <div class="rules-list" id="separationPoolList"></div>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-title-row">
+            <div>
+              <h3>Buddy groups</h3>
+              <p>Keep a group of two or three students at the same table group during shuffles. The third student is optional.</p>
+            </div>
+          </div>
+          <div class="buddy-builder buddy-group-builder">
+            <label class="field grow"><span>Student 1</span><select id="buddyStudentA"></select></label>
+            <label class="field grow"><span>Student 2</span><select id="buddyStudentB"></select></label>
+            <label class="field grow"><span>Student 3 · optional</span><select id="buddyStudentC"></select></label>
+            <button class="filled-button" id="addBuddyBtn" type="button">Add buddy group</button>
+          </div>
+          <div class="rules-list" id="buddyRulesList"></div>
+        </section>
+
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog compact-modal" id="newClassDialog">
+    <form method="dialog" class="dialog-frame compact-dialog" id="newClassForm">
+      <div class="dialog-header">
+        <div><div class="eyebrow">NEW CLASS</div><h2>Name your class</h2><p>You can add the roster and draw its seating chart next.</p></div>
+        <button class="icon-button dialog-close" value="cancel" aria-label="Cancel"><svg viewBox="0 0 24 24"><path d="m18.3 5.71-1.41-1.42L12 9.17 7.11 4.29 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.42L12 12.01l4.89 4.9 1.41-1.42-4.89-4.89 4.89-4.89Z"/></svg></button>
+      </div>
+      <div class="new-class-body">
+        <label class="field"><span>Class name</span><input id="newClassNamePrompt" type="text" autocomplete="off" placeholder="e.g. Juniors (PM)" /></label>
+      </div>
+      <div class="dialog-actions"><button class="filled-button" id="confirmCreateClassBtn" value="default">Create class</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="layout-editor-dialog" id="layoutEditorDialog">
+    <div class="layout-editor-shell">
+      <div class="layout-editor-header">
+        <div><div class="eyebrow">SEATING CHART</div><strong id="layoutEditorClassName">Draw Seating Chart</strong></div>
+        <button class="icon-button" id="layoutEditorCloseBtn" type="button" aria-label="Close seating chart editor"><svg viewBox="0 0 24 24"><path d="m18.3 5.71-1.41-1.42L12 9.17 7.11 4.29 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.42L12 12.01l4.89 4.9 1.41-1.42-4.89-4.89 4.89-4.89Z"/></svg></button>
+      </div>
+      <iframe id="layoutEditorFrame" title="Draw Seating Chart"></iframe>
+    </div>
+  </dialog>
+
+  <dialog class="dialog schedule-dialog" id="scheduleDialog">
+    <form method="dialog" class="dialog-frame compact-dialog">
+      <div class="dialog-header">
+        <div>
+          <div class="eyebrow">TODAY</div>
+          <h2>Day & schedule override</h2>
+          <p>Auto mode uses the official 2026–27 CAL A/B calendar.</p>
+        </div>
+        <button class="icon-button dialog-close" value="cancel" aria-label="Close schedule options">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18.3 5.71-1.41-1.42L12 9.17 7.11 4.29 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.42L12 12.01l4.89 4.9 1.41-1.42-4.89-4.89 4.89-4.89Z"/></svg>
+        </button>
+      </div>
+      <div class="schedule-options" id="scheduleOptions">
+        <div class="schedule-group-label">DAY</div>
+        <label class="radio-card">
+          <input type="radio" name="dayOverride" value="auto" />
+          <span class="radio-copy"><strong>Auto from CAL calendar</strong><small>Detects A/B days and no-student dates from the official 2026–27 calendar.</small></span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="dayOverride" value="A" />
+          <span class="radio-copy"><strong>Force A-Day</strong><small>Temporarily overrides the calendar.</small></span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="dayOverride" value="B" />
+          <span class="radio-copy"><strong>Force B-Day</strong><small>Temporarily overrides the calendar.</small></span>
+        </label>
+
+        <div class="schedule-group-label schedule-group-spacer">BELL SCHEDULE</div>
+        <label class="radio-card">
+          <input type="radio" name="scheduleOverride" value="auto" />
+          <span class="radio-copy"><strong>Auto schedule</strong><small>Uses the regular schedule, with Wednesday/marked late-start handling.</small></span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="scheduleOverride" value="allPeriods" />
+          <span class="radio-copy"><strong>All periods day</strong><small>Uses the special all-periods schedule.</small></span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="scheduleOverride" value="twoHour" />
+          <span class="radio-copy"><strong>2-hour late start</strong><small>Uses the inclement-weather late-start schedule.</small></span>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button class="filled-button" id="applyScheduleBtn" value="default">Apply</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/static/app.js?v=2.8.0"></script>
+</body>
+</html>
