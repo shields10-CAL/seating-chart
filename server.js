@@ -44,7 +44,7 @@ app.use('/static', (req, res, next) => {
 
 function emptyState() {
   return {
-    version: 7,
+    version: 8,
     theme: 'light',
     dayType: 'A',
     dayOverride: 'auto',
