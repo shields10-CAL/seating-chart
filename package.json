@@ -9,7 +9,8 @@
     "dev": "node --watch --env-file=.env server.js",
     "auth:migrate": "auth migrate --config ./auth.js",
     "auth:create-admin": "auth create-admin --config ./auth.js",
-    "auth:check": "auth check --config ./auth.js"
+    "auth:check": "auth check --config ./auth.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22"

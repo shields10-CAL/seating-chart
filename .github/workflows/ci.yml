@@ -1,0 +1,27 @@
+name: Application checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: git ls-files -z '*.js' | xargs -0 -r -n1 node --check
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run application tests
+        run: npm test
