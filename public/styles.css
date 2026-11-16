@@ -1497,3 +1497,45 @@ body { color-scheme: light; }
   .school-config-grid { grid-template-columns: 1fr; }
   .late-start-settings { grid-template-columns: 1fr; align-items: start; }
 }
+
+
+/* v2.9 shared seating charts + flatter classroom canvas */
+.chart-source-note {
+  min-height: 0 !important;
+  margin: -3px 0 13px !important;
+  color: var(--muted);
+  font-size: .76rem !important;
+  line-height: 1.4 !important;
+}
+
+.dialog-help {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+/* The classroom now uses the page itself as the canvas instead of a card. */
+.main-content,
+.room {
+  background: #fff;
+}
+
+.chartroom-stage {
+  background-color: #fff;
+  background-image: radial-gradient(circle, rgba(76, 82, 92, .11) 1px, transparent 1.15px);
+  background-size: 22px 22px;
+  background-position: center;
+}
+
+.chartroom-canvas {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.chartroom-grid {
+  border-radius: 0;
+  background-image: none;
+}
