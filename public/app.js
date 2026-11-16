@@ -82,7 +82,14 @@
     seatingSetupCard: $('#seatingSetupCard'),
     seatingSetupStatus: $('#seatingSetupStatus'),
     seatingSetupDetail: $('#seatingSetupDetail'),
+    chartSourceNote: $('#chartSourceNote'),
     editSeatingChartBtn: $('#editSeatingChartBtn'),
+    shareSeatingChartBtn: $('#shareSeatingChartBtn'),
+    makeIndependentChartBtn: $('#makeIndependentChartBtn'),
+    shareChartDialog: $('#shareChartDialog'),
+    shareChartForm: $('#shareChartForm'),
+    shareChartClassSelect: $('#shareChartClassSelect'),
+    confirmShareChartBtn: $('#confirmShareChartBtn'),
     fixedSeatStudent: $('#fixedSeatStudent'),
     fixedSeatNumber: $('#fixedSeatNumber'),
     addFixedSeatBtn: $('#addFixedSeatBtn'),
@@ -157,7 +164,7 @@
 
   function initialState() {
     return {
-      version: 7,
+      version: 8,
       dayType: 'A',
       dayOverride: 'auto',
       scheduleOverride: 'auto',
@@ -210,17 +217,33 @@
         name: String(value.name || id),
         students,
         layout,
+        layoutSourceClassId: typeof value.layoutSourceClassId === 'string' && value.layoutSourceClassId.trim()
+          ? value.layoutSourceClassId.trim()
+          : null,
         separationPool: (Array.isArray(value.separationPool) ? value.separationPool.map(String) : legacyPool)
           .filter((studentId, index, list) => validStudentIds.has(studentId) && list.indexOf(studentId) === index),
         buddyGroups,
         tableHistory
       };
-      repairSeats(normalizedClasses[id]);
+    }
+
+    // Keep only valid links and reject cycles in saved data.
+    for (const cls of Object.values(normalizedClasses)) {
+      const seen = new Set([cls.id]);
+      let sourceId = cls.layoutSourceClassId;
+      while (sourceId) {
+        if (!normalizedClasses[sourceId] || seen.has(sourceId)) {
+          cls.layoutSourceClassId = null;
+          break;
+        }
+        seen.add(sourceId);
+        sourceId = normalizedClasses[sourceId].layoutSourceClassId;
+      }
     }
 
     const requestedActive = String(candidate.activeClassId || '');
     return {
-      version: 7,
+      version: 8,
       dayType: candidate.dayType === 'B' ? 'B' : 'A',
       dayOverride: ['auto', 'A', 'B'].includes(candidate.dayOverride) ? candidate.dayOverride : 'auto',
       sidebarWidth: Math.min(420, Math.max(190, Number(candidate.sidebarWidth) || 292)),
@@ -281,15 +304,39 @@
   }
 
   state = await loadState();
+  Object.values(state.classes).forEach(repairSeats);
   let toastTimer = null;
   let shuffleTimer = null;
   let draggedStudentId = null;
+  let layoutEditorTargetClassId = null;
   let attendanceAudioContext = null;
   let attendanceRuntime = { periodKey: null, lastDingMarker: '' };
   let attendanceStatus = state.attendanceStatus || { dismissedPeriodKey: '' };
 
   function activeClass() {
     return state.classes[state.activeClassId];
+  }
+
+  function layoutOwner(classData = activeClass()) {
+    if (!classData) return null;
+    let current = classData;
+    const seen = new Set();
+    while (current?.layoutSourceClassId) {
+      if (seen.has(current.id)) return classData;
+      seen.add(current.id);
+      const next = state.classes[current.layoutSourceClassId];
+      if (!next || seen.has(next.id)) return classData;
+      current = next;
+    }
+    return current;
+  }
+
+  function effectiveLayoutForClass(classData = activeClass()) {
+    return layoutOwner(classData)?.layout || null;
+  }
+
+  function classesUsingLayoutOwner(ownerId) {
+    return Object.values(state.classes).filter(cls => layoutOwner(cls)?.id === ownerId);
   }
 
   function seatNumberFromLayoutSeat(seat, fallback) {
@@ -299,7 +346,7 @@
   }
 
   function layoutSeatInfos(classData = activeClass()) {
-    const layout = classData?.layout;
+    const layout = effectiveLayoutForClass(classData);
     if (!layout || !Array.isArray(layout.seats)) return [];
     const usedNumbers = new Set();
     const tableGroups = Array.isArray(layout.tables) ? layout.tables : [];
@@ -381,7 +428,7 @@
   }
 
   function seatingChartReady(classData = activeClass()) {
-    if (!classData?.layout) return false;
+    if (!effectiveLayoutForClass(classData)) return false;
     const seats = layoutSeatInfos(classData);
     return seats.length > 0 && seats.length >= classData.students.length;
   }
@@ -634,21 +681,24 @@
       return;
     }
 
-    if (!cls.layout || !layoutHasSeats(cls)) {
+    if (!effectiveLayoutForClass(cls) || !layoutHasSeats(cls)) {
       els.tableGrid.className = 'chartroom-stage no-class-grid';
       els.tableGrid.innerHTML = `
         <div class="no-class-panel setup-needed-panel">
           <div class="no-class-icon warning-icon" aria-hidden="true">!</div>
           <h2>Seating chart needed</h2>
-          <p>Draw ${escapeHtml(cls.name)}'s classroom layout and place student seats.</p>
-          <div class="button-row"><button class="filled-button" type="button" data-draw-room>Draw seating chart</button><button class="outlined-button" type="button" data-open-setup>Class dashboard</button></div>
+          <p>Create a new room layout or link ${escapeHtml(cls.name)} to a chart from another period.</p>
+          <div class="button-row wrap">
+            <button class="filled-button" type="button" data-draw-room>New chart</button>
+            <button class="outlined-button" type="button" data-share-room>Share chart from other period</button>
+          </div>
         </div>`;
       $('[data-draw-room]', els.tableGrid)?.addEventListener('click', openLayoutEditor);
-      $('[data-open-setup]', els.tableGrid)?.addEventListener('click', () => { renderDashboard(); els.dashboardDialog.showModal(); });
+      $('[data-share-room]', els.tableGrid)?.addEventListener('click', openShareChartDialog);
       return;
     }
 
-    const layout = cls.layout;
+    const layout = effectiveLayoutForClass(cls);
     const bounds = displayRoomBounds(layout);
     const seatInfos = layoutSeatInfos(cls);
 
@@ -773,16 +823,31 @@
     els.deleteClassBtn.disabled = !hasClass;
 
     const rosterReady = Boolean(cls?.students.length);
+    const layout = cls ? effectiveLayoutForClass(cls) : null;
+    const owner = cls ? layoutOwner(cls) : null;
+    const linked = Boolean(cls && owner && owner.id !== cls.id);
     const seatCount = cls ? layoutSeatInfos(cls).length : 0;
-    const chartReady = Boolean(cls?.layout && seatCount && seatCount >= (cls?.students.length || 0));
+    const chartReady = Boolean(layout && seatCount && seatCount >= (cls?.students.length || 0));
     setSetupCard(els.rosterSetupCard, els.rosterSetupStatus, els.rosterSetupDetail, rosterReady);
     setSetupCard(els.seatingSetupCard, els.seatingSetupStatus, els.seatingSetupDetail, chartReady);
     els.rosterSetupDetail.textContent = rosterReady ? `${cls.students.length} students loaded.` : 'Import a CSV roster before shuffling seats.';
-    if (!cls?.layout || !seatCount) els.seatingSetupDetail.textContent = 'Draw the room and place numbered student seats.';
+    if (!layout || !seatCount) els.seatingSetupDetail.textContent = 'Create a new chart or share one from another period.';
     else if (seatCount < cls.students.length) els.seatingSetupDetail.textContent = `${seatCount} seats for ${cls.students.length} students — add ${cls.students.length - seatCount} more seat${cls.students.length - seatCount === 1 ? '' : 's'}.`;
     else els.seatingSetupDetail.textContent = `${seatCount} numbered seats ready.`;
-    els.editSeatingChartBtn.textContent = cls?.layout ? 'Edit seating chart' : 'Draw seating chart';
+
+    if (els.chartSourceNote) {
+      els.chartSourceNote.textContent = linked
+        ? `Linked to ${owner.name}. Changes to its chart automatically update this class.`
+        : layout
+          ? 'This class owns its chart and can be used as a master for other periods.'
+          : 'Choose New chart, or link this class to a chart from another period.';
+    }
+    els.editSeatingChartBtn.textContent = linked ? 'Edit master chart' : (layout ? 'Edit seating chart' : 'New chart');
+    els.shareSeatingChartBtn.textContent = linked ? 'Use a different shared chart' : 'Share chart from other period';
+    els.makeIndependentChartBtn.hidden = !linked;
     els.editSeatingChartBtn.disabled = !hasClass;
+    els.shareSeatingChartBtn.disabled = !hasClass;
+    els.makeIndependentChartBtn.disabled = !hasClass || !linked;
     els.importCsvBtn.disabled = !hasClass;
     els.downloadCsvTemplateBtn.disabled = !hasClass;
 
@@ -993,7 +1058,7 @@
     const duplicate = Object.values(state.classes).some(c => c.name.toLowerCase() === name.toLowerCase());
     if (duplicate) return showToast('A class with that name already exists.');
     const id = makeId('class');
-    state.classes[id] = { id, name, students: [], layout: null, separationPool: [], buddyGroups: [], tableHistory: {} };
+    state.classes[id] = { id, name, students: [], layout: null, layoutSourceClassId: null, separationPool: [], buddyGroups: [], tableHistory: {} };
     state.activeClassId = id;
     saveState();
     els.newClassDialog.close();
@@ -1006,23 +1071,43 @@
   function deleteCurrentClass() {
     const cls = activeClass();
     if (!cls) return showToast('There is no class to delete.');
-    if (!window.confirm(`Delete “${cls.name}” and its settings?`)) return;
+    const dependents = classesUsingLayoutOwner(cls.id).filter(other => other.id !== cls.id);
+    const dependencyCopy = cls.layout ? JSON.parse(JSON.stringify(cls.layout)) : null;
+    const dependencyNote = dependents.length
+      ? `\n\n${dependents.length} linked class${dependents.length === 1 ? '' : 'es'} will keep an independent copy of this seating chart.`
+      : '';
+    if (!window.confirm(`Delete “${cls.name}” and its settings?${dependencyNote}`)) return;
+
+    for (const dependent of dependents) {
+      dependent.layout = dependencyCopy ? JSON.parse(JSON.stringify(dependencyCopy)) : null;
+      dependent.layoutSourceClassId = null;
+      repairSeats(dependent);
+    }
+
     delete state.classes[cls.id];
     state.activeClassId = Object.keys(state.classes)[0] || '';
     saveState();
     renderAll();
     if (state.activeClassId) renderDashboard(); else els.dashboardDialog.close();
-    showToast(`${cls.name} deleted.`);
+    showToast(dependents.length
+      ? `${cls.name} deleted. Linked classes kept independent chart copies.`
+      : `${cls.name} deleted.`);
   }
 
   function openLayoutEditor() {
     const cls = activeClass();
     if (!cls) return showToast('Create a class first.');
-    els.layoutEditorClassName.textContent = cls.name;
+
+    const owner = layoutOwner(cls) || cls;
+    layoutEditorTargetClassId = owner.id;
+    els.layoutEditorClassName.textContent = owner.id === cls.id
+      ? cls.name
+      : `${owner.name} · master chart shared with ${cls.name}`;
+
     const loadLayout = () => {
       try {
         const editor = els.layoutEditorFrame.contentWindow?.DrawSeatingChart;
-        if (editor?.loadLayout) editor.loadLayout(cls.layout || blankLayout());
+        if (editor?.loadLayout) editor.loadLayout(owner.layout || blankLayout());
       } catch (error) { console.error('Could not load seating chart editor:', error); }
     };
     if (!els.layoutEditorFrame.getAttribute('src')) {
@@ -1037,17 +1122,90 @@
   }
 
   function acceptLayoutFromEditor(layout) {
-    const cls = activeClass();
-    if (!cls) return;
+    const owner = state.classes[layoutEditorTargetClassId] || layoutOwner(activeClass()) || activeClass();
+    if (!owner) return;
     const normalized = normalizeLayout(layout);
     if (!normalized) return showToast('The seating chart could not be saved.');
-    cls.layout = normalized;
-    repairSeats(cls);
+
+    owner.layout = normalized;
+    owner.layoutSourceClassId = null;
+    const linkedClasses = classesUsingLayoutOwner(owner.id);
+    linkedClasses.forEach(repairSeats);
+
     saveState();
     els.layoutEditorDialog.close();
+    layoutEditorTargetClassId = null;
     renderAll();
     if (els.dashboardDialog.open) renderDashboard();
-    showToast(`Seating chart saved for ${cls.name}.`);
+    showToast(linkedClasses.length > 1
+      ? `Master seating chart saved for ${owner.name}. ${linkedClasses.length - 1} linked class${linkedClasses.length === 2 ? '' : 'es'} updated.`
+      : `Seating chart saved for ${owner.name}.`);
+  }
+
+  function shareableLayoutOwners(targetClass = activeClass()) {
+    const seen = new Set();
+    return Object.values(state.classes)
+      .filter(candidate => candidate.id !== targetClass?.id)
+      .map(candidate => layoutOwner(candidate))
+      .filter(owner => {
+        if (!owner || owner.id === targetClass?.id || seen.has(owner.id)) return false;
+        seen.add(owner.id);
+        return Boolean(owner.layout && layoutHasSeats(owner));
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  function openShareChartDialog() {
+    const cls = activeClass();
+    if (!cls) return showToast('Create a class first.');
+    const owners = shareableLayoutOwners(cls);
+    if (!owners.length) return showToast('Create a seating chart in another class first.');
+
+    els.shareChartClassSelect.innerHTML = owners
+      .map(owner => `<option value="${escapeHtml(owner.id)}">${escapeHtml(owner.name)}</option>`)
+      .join('');
+    els.shareChartDialog.showModal();
+    setTimeout(() => els.shareChartClassSelect.focus(), 30);
+  }
+
+  function shareChartFromOtherClass() {
+    const cls = activeClass();
+    if (!cls) return;
+    const source = state.classes[els.shareChartClassSelect.value];
+    const owner = layoutOwner(source);
+    if (!owner || owner.id === cls.id || !owner.layout || !layoutHasSeats(owner)) {
+      return showToast('Choose a class with a completed seating chart.');
+    }
+
+    if (effectiveLayoutForClass(cls) && !cls.layoutSourceClassId) {
+      const replaceOwn = window.confirm(`Replace ${cls.name}'s current chart with a live link to ${owner.name}?`);
+      if (!replaceOwn) return;
+    }
+
+    cls.layout = null;
+    cls.layoutSourceClassId = owner.id;
+    repairSeats(cls);
+    saveState();
+    els.shareChartDialog.close();
+    renderAll();
+    if (els.dashboardDialog.open) renderDashboard();
+    showToast(`${cls.name} is now linked to ${owner.name}'s seating chart.`);
+  }
+
+  function makeChartIndependent() {
+    const cls = activeClass();
+    if (!cls?.layoutSourceClassId) return;
+    const owner = layoutOwner(cls);
+    const layout = effectiveLayoutForClass(cls);
+    if (!layout || !owner) return showToast('The shared chart is no longer available.');
+
+    cls.layout = JSON.parse(JSON.stringify(layout));
+    cls.layoutSourceClassId = null;
+    repairSeats(cls);
+    saveState();
+    renderAll();
+    if (els.dashboardDialog.open) renderDashboard();
+    showToast(`${cls.name} now has an independent copy of ${owner.name}'s chart.`);
   }
 
   function parseCsv(text) {
@@ -1295,7 +1453,7 @@
   }
 
   function findValidShuffle(cls) {
-    if (!cls?.layout || !layoutHasSeats(cls)) return { error: 'Draw a seating chart before shuffling.' };
+    if (!effectiveLayoutForClass(cls) || !layoutHasSeats(cls)) return { error: 'Create or link a seating chart before shuffling.' };
     if (cls.students.length > layoutSeatInfos(cls).length) return { error: 'The seating chart does not have enough seats for this roster.' };
 
     const byId = new Map(cls.students.map(student => [student.id, student]));
@@ -2017,6 +2175,12 @@
     createClass();
   });
   els.editSeatingChartBtn.addEventListener('click', openLayoutEditor);
+  els.shareSeatingChartBtn.addEventListener('click', openShareChartDialog);
+  els.makeIndependentChartBtn.addEventListener('click', makeChartIndependent);
+  els.shareChartForm.addEventListener('submit', event => {
+    event.preventDefault();
+    shareChartFromOtherClass();
+  });
   els.addFixedSeatBtn.addEventListener('click', addFixedSeatRule);
   els.layoutEditorCloseBtn.addEventListener('click', () => els.layoutEditorDialog.close());
   window.addEventListener('message', event => {
@@ -2035,7 +2199,7 @@
   els.addBuddyBtn.addEventListener('click', addBuddyRule);
 
   // Close dialogs when clicking the dimmed backdrop.
-  [els.dashboardDialog, els.scheduleDialog, els.newClassDialog].forEach(dialog => {
+  [els.dashboardDialog, els.scheduleDialog, els.newClassDialog, els.shareChartDialog].forEach(dialog => {
     dialog.addEventListener('click', event => {
       const rect = dialog.getBoundingClientRect();
       const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
