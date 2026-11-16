@@ -90,6 +90,7 @@
     shareChartForm: $('#shareChartForm'),
     shareChartClassSelect: $('#shareChartClassSelect'),
     confirmShareChartBtn: $('#confirmShareChartBtn'),
+    shareChartCancelBtn: $('#shareChartCancelBtn'),
     fixedSeatStudent: $('#fixedSeatStudent'),
     fixedSeatNumber: $('#fixedSeatNumber'),
     addFixedSeatBtn: $('#addFixedSeatBtn'),
@@ -2181,6 +2182,7 @@
     event.preventDefault();
     shareChartFromOtherClass();
   });
+  els.shareChartCancelBtn.addEventListener('click', () => els.shareChartDialog.close());
   els.addFixedSeatBtn.addEventListener('click', addFixedSeatRule);
   els.layoutEditorCloseBtn.addEventListener('click', () => els.layoutEditorDialog.close());
   window.addEventListener('message', event => {
