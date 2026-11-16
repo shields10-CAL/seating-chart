@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f7fb" />
   <title>Classroom Seating Chart</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2.8.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.9.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -150,9 +150,12 @@
               </div>
               <span class="setup-status" id="seatingSetupStatus">Missing</span>
             </div>
-            <p id="seatingSetupDetail">Draw the room and place numbered student seats.</p>
+            <p id="seatingSetupDetail">Create a new chart or share one from another period.</p>
+            <p class="chart-source-note" id="chartSourceNote">Choose how this class gets its seating chart.</p>
             <div class="button-row wrap">
-              <button class="filled-button" id="editSeatingChartBtn" type="button">Draw seating chart</button>
+              <button class="filled-button" id="editSeatingChartBtn" type="button">New chart</button>
+              <button class="outlined-button" id="shareSeatingChartBtn" type="button">Share chart from other period</button>
+              <button class="outlined-button" id="makeIndependentChartBtn" type="button" hidden>Make independent copy</button>
             </div>
           </section>
         </div>
@@ -228,6 +231,33 @@
     </form>
   </dialog>
 
+
+  <dialog class="dialog compact-modal" id="shareChartDialog">
+    <form method="dialog" class="dialog-frame compact-dialog" id="shareChartForm">
+      <div class="dialog-header">
+        <div>
+          <div class="eyebrow">SHARED SEATING CHART</div>
+          <h2>Use a chart from another class</h2>
+          <p>This creates a live link. When the master chart changes, this class updates automatically.</p>
+        </div>
+        <button class="icon-button dialog-close" value="cancel" aria-label="Cancel">
+          <svg viewBox="0 0 24 24"><path d="m18.3 5.71-1.41-1.42L12 9.17 7.11 4.29 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.42L12 12.01l4.89 4.9 1.41-1.42-4.89-4.89 4.89-4.89Z"/></svg>
+        </button>
+      </div>
+      <div class="new-class-body">
+        <label class="field">
+          <span>Master chart</span>
+          <select id="shareChartClassSelect"></select>
+        </label>
+        <p class="dialog-help">The selected class remains the master. This class keeps its own roster, fixed seats, separation pool, and buddy groups.</p>
+      </div>
+      <div class="dialog-actions">
+        <button class="outlined-button" value="cancel" type="button" onclick="this.closest('dialog').close()">Cancel</button>
+        <button class="filled-button" id="confirmShareChartBtn" value="default" type="submit">Link chart</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="layout-editor-dialog" id="layoutEditorDialog">
     <div class="layout-editor-shell">
       <div class="layout-editor-header">
@@ -287,6 +317,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/static/app.js?v=2.8.0"></script>
+  <script src="/static/app.js?v=2.9.0"></script>
 </body>
 </html>
