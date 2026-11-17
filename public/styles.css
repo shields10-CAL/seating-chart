@@ -2171,3 +2171,18 @@ body.seat-palette-contrast .chartroom-seat:not(.empty) .chartroom-seat-circle {
     grid-template-rows: minmax(0, 1.05fr) minmax(0, .95fr);
   }
 }
+
+
+@media (max-width: 760px) {
+  .public-dashboard {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .public-dashboard-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+}
