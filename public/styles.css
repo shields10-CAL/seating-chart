@@ -1944,3 +1944,188 @@ body.sidebar-collapsed .main-content {
     margin-top: 5px;
   }
 }
+
+
+/* v2.12 dashboard fit + seat display controls */
+
+/* Keep labels visually attached to their seat circles. The above/below side
+   still avoids the nearest table, but the label itself sits just a few pixels
+   from its circle. */
+.chartroom-token {
+  gap: clamp(2px, calc(var(--chartroom-cell-px, 42px) * .06), 4px);
+}
+
+.chartroom-seat.label-above .chartroom-student-name {
+  order: -1 !important;
+  translate: 0 0;
+}
+
+.chartroom-seat.label-below .chartroom-student-name {
+  order: 2 !important;
+  translate: 0 0;
+}
+
+/* Seat color presentation preferences. */
+body.seat-color-stroke .chartroom-seat:not(.empty) .chartroom-seat-circle {
+  background: var(--surface);
+  border-color: var(--student-color, var(--border));
+  color: var(--text);
+}
+
+body.seat-color-fill .chartroom-seat:not(.empty) .chartroom-seat-circle {
+  background: var(--student-color, var(--surface));
+  border-color: var(--student-color, var(--border));
+  color: var(--student-ink, #15171b);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--student-color) 28%, rgba(25,28,34,.16));
+}
+
+body.seat-palette-contrast .chartroom-seat:not(.empty) .chartroom-seat-circle {
+  border-width: max(3px, clamp(2px, calc(var(--chartroom-cell-px, 42px) * .065), 4px));
+}
+
+/* Teacher-dashboard display preferences. */
+.display-settings-section {
+  background: color-mix(in srgb, var(--surface-2) 48%, var(--surface));
+}
+
+.display-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.display-setting-group {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: grid;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.display-setting-group legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.display-choice {
+  position: relative;
+  cursor: pointer;
+}
+
+.display-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.display-choice > span {
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  background: var(--surface);
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.display-choice strong {
+  font-size: .86rem;
+  font-weight: 800;
+}
+
+.display-choice small {
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.25;
+}
+
+.display-choice input:checked + span {
+  border-color: color-mix(in srgb, var(--primary) 68%, #9b7b00);
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.display-choice input:focus-visible + span {
+  outline: 2px solid #4c7bd9;
+  outline-offset: 2px;
+}
+
+/* Smart-TV dashboard: fit all bell information inside the card rather than
+   clipping the countdown or footer. */
+.public-schedule-card {
+  overflow: visible;
+  justify-content: center;
+  padding-block: clamp(14px, 2vh, 28px);
+}
+
+.public-schedule-card .schedule-status {
+  margin-top: clamp(6px, 1vh, 12px);
+  font-size: clamp(1rem, min(1.7vw, 2.6vh), 1.65rem);
+  line-height: 1.05;
+}
+
+.public-schedule-card .schedule-time {
+  margin-top: clamp(2px, .4vh, 5px);
+  font-size: clamp(2.8rem, min(5vw, 7.6vh), 5.2rem);
+  line-height: .88;
+}
+
+.public-schedule-card .schedule-remaining {
+  margin-top: clamp(5px, .7vh, 9px);
+  font-size: clamp(.88rem, min(1.25vw, 2vh), 1.2rem);
+  line-height: 1.05;
+}
+
+.public-schedule-card .schedule-mode {
+  margin-top: clamp(10px, 1.5vh, 18px);
+  padding-top: clamp(8px, 1vh, 13px);
+  font-size: clamp(.72rem, min(.95vw, 1.55vh), .92rem);
+  line-height: 1.1;
+}
+
+@media (max-height: 800px) and (min-width: 761px) {
+  .public-info-grid {
+    grid-template-rows: minmax(160px, .72fr) minmax(240px, 1fr);
+  }
+
+  .public-schedule-card {
+    padding: 14px 20px;
+  }
+
+  .public-schedule-card .overline {
+    font-size: clamp(.66rem, 1.45vh, .78rem);
+  }
+
+  .public-schedule-card .schedule-status {
+    font-size: clamp(1rem, 2.7vh, 1.4rem);
+  }
+
+  .public-schedule-card .schedule-time {
+    font-size: clamp(3rem, 8vh, 4.6rem);
+  }
+
+  .public-schedule-card .schedule-remaining {
+    font-size: clamp(.85rem, 2.1vh, 1.05rem);
+  }
+
+  .public-schedule-card .schedule-mode {
+    margin-top: 10px;
+    padding-top: 8px;
+    font-size: clamp(.7rem, 1.6vh, .84rem);
+  }
+}
+
+@media (max-width: 760px) {
+  .display-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
