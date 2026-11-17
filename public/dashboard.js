@@ -36,9 +36,16 @@
     els.scheduleRemaining.textContent = snapshot.scheduleRemaining;
     els.scheduleModeLabel.textContent = snapshot.scheduleModeLabel;
 
-    document.title = snapshot.titleLabel
-      ? `${snapshot.titleLabel} · CAL School Dashboard`
-      : 'CAL School Dashboard';
+    if (Number.isFinite(snapshot.secondsLeft)) {
+      const mins = Math.floor(snapshot.secondsLeft / 60);
+      const secs = snapshot.secondsLeft % 60;
+      const shortLabel = String(snapshot.titleLabel || '').replace(/^Period\s+/i, 'P');
+      document.title = `${mins}:${String(secs).padStart(2, '0')} · ${shortLabel} · CAL School Dashboard`;
+    } else {
+      document.title = snapshot.titleLabel
+        ? `${snapshot.titleLabel} · CAL School Dashboard`
+        : 'CAL School Dashboard';
+    }
   }
 
   async function loadConfig(showError = true) {
