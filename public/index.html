@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f7fb" />
   <title>Classroom Seating Chart</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2.9.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.10.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -16,6 +16,9 @@
           <strong>Seating Chart</strong>
           <span id="signedInAs">Teacher</span>
         </div>
+        <button class="sidebar-collapse-button" id="sidebarCollapseBtn" type="button" aria-label="Hide sidebar" title="Hide sidebar" aria-expanded="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15.4 7-1.4-1.4L7.6 12l6.4 6.4 1.4-1.4-5-5 5-5Z"/></svg>
+        </button>
       </div>
 
       <section class="sidebar-card clock-card" aria-live="polite">
@@ -82,6 +85,9 @@
       </div>
     </aside>
     <div class="sidebar-resizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div>
+    <button class="sidebar-reveal-button" id="sidebarRevealBtn" type="button" aria-label="Show sidebar" title="Show sidebar" aria-expanded="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.6 17 1.4 1.4 6.4-6.4L10 5.6 8.6 7l5 5-5 5Z"/></svg>
+    </button>
 
     <main class="main-content">
       <header class="topbar">
@@ -317,6 +323,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/static/app.js?v=2.9.0"></script>
+  <script src="/static/info-core.js?v=2.10.0"></script>
+  <script src="/static/app.js?v=2.10.0"></script>
 </body>
 </html>
