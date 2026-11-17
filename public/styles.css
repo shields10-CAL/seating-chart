@@ -1539,3 +1539,240 @@ body { color-scheme: light; }
   border-radius: 0;
   background-image: none;
 }
+
+
+/* v2.10 responsive workspace + public dashboard */
+
+/* Sidebar can be completely hidden to give Chromebook-sized screens more room. */
+.sidebar-brand-copy { flex: 1 1 auto; }
+.sidebar-collapse-button,
+.sidebar-reveal-button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.sidebar-collapse-button:hover,
+.sidebar-reveal-button:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-collapse-button svg,
+.sidebar-reveal-button svg { width: 21px; height: 21px; fill: currentColor; }
+
+.sidebar-reveal-button {
+  display: none;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 30;
+  background: rgba(255,255,255,.94);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  backdrop-filter: blur(8px);
+}
+
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+body.sidebar-collapsed .sidebar,
+body.sidebar-collapsed .sidebar-resizer { display: none !important; }
+body.sidebar-collapsed .sidebar-reveal-button { display: grid; }
+body.sidebar-collapsed .class-fab-bar,
+body.sidebar-collapsed .toast { left: 50%; }
+
+/* Use the whole main workspace instead of preserving the old 1120px desktop cap. */
+.main-content {
+  padding-left: clamp(14px, 1.8vw, 28px);
+  padding-right: clamp(14px, 1.8vw, 28px);
+}
+.topbar,
+.room {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+.chartroom-stage {
+  justify-content: stretch;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.chartroom-canvas {
+  max-width: 100%;
+}
+
+/* Names and seat markers scale down with the computed room metric instead of
+   enforcing desktop-sized minimums. Names remain visible rather than ellipsizing. */
+.chartroom-seat-circle {
+  width: clamp(28px, calc(var(--chartroom-cell-px, 42px) * .82), 54px);
+  height: clamp(28px, calc(var(--chartroom-cell-px, 42px) * .82), 54px);
+  border-width: clamp(2px, calc(var(--chartroom-cell-px, 42px) * .055), 3px);
+  font-size: clamp(.58rem, calc(var(--chartroom-cell-px, 42px) * .21), .92rem);
+}
+.chartroom-student-name {
+  width: max-content;
+  max-width: calc(var(--chartroom-cell-px, 42px) * 4.4);
+  padding: 1px 4px;
+  font-size: clamp(.54rem, calc(var(--chartroom-cell-px, 42px) * .19), .88rem);
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+.chartroom-object-label > span {
+  font-size: clamp(.48rem, calc(var(--chartroom-cell-px, 42px) * .21), .76rem);
+}
+
+/* In full-screen info mode, both settings gears occupy the same upper-right
+   position while the A/B label stays vertically centered in its card. */
+body.sidebar-focus .day-card,
+body.sidebar-focus .schedule-card { position: relative; }
+body.sidebar-focus .day-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+}
+body.sidebar-focus .day-card #dayLabel { grid-column: 2; align-self: center; }
+body.sidebar-focus .day-gear,
+body.sidebar-focus .schedule-card .icon-button {
+  position: absolute;
+  top: clamp(18px, 2vw, 30px);
+  right: clamp(18px, 2vw, 30px);
+  margin: 0;
+}
+
+/* Public, no-login school dashboard. It deliberately uses the same card,
+   clock, day, and schedule classes as the signed-in sidebar. */
+.public-dashboard {
+  min-height: 100vh;
+  background: #fff;
+  overflow: auto;
+}
+.public-dashboard-shell {
+  min-height: 100vh;
+  padding: clamp(18px, 2.5vw, 34px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2vw, 26px);
+}
+.public-dashboard-brand {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.public-dashboard-brand img {
+  width: clamp(72px, 6vw, 104px);
+  height: auto;
+}
+.public-dashboard-brand > div { display: grid; gap: 1px; }
+.public-dashboard-brand strong { font-size: clamp(.82rem, 1.2vw, 1.05rem); font-weight: 820; }
+.public-dashboard-brand span { color: var(--muted); font-size: clamp(.68rem, 1vw, .82rem); font-weight: 650; }
+
+.public-info-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(260px, .95fr) minmax(220px, .72fr);
+  gap: clamp(16px, 2vw, 26px);
+}
+.public-info-grid .sidebar-card,
+.public-info-grid .day-card { border-radius: clamp(18px, 1.8vw, 28px); }
+
+.public-clock-card {
+  grid-column: 1 / -1;
+  padding: clamp(24px, 3vw, 48px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.public-clock-card .clock-time {
+  font-size: clamp(5rem, 11vw, 10rem);
+  line-height: .82;
+}
+.public-clock-card .clock-date {
+  margin-top: clamp(14px, 1.5vw, 22px);
+  font-size: clamp(1.1rem, 2vw, 1.8rem);
+}
+
+.public-day-card {
+  cursor: default;
+  min-height: 0;
+  padding: clamp(24px, 3vw, 46px);
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  column-gap: clamp(15px, 2vw, 26px);
+}
+.public-day-card:hover { transform: none; box-shadow: var(--shadow-1); }
+.public-day-card #dayLabel {
+  grid-column: 2;
+  font-size: clamp(3rem, 6vw, 6rem);
+  line-height: .9;
+}
+.public-day-card .day-dot {
+  width: clamp(18px, 1.7vw, 27px);
+  height: clamp(18px, 1.7vw, 27px);
+}
+
+.public-schedule-card {
+  min-height: 0;
+  padding: clamp(24px, 3vw, 46px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.public-schedule-card .overline { font-size: clamp(.78rem, 1.1vw, 1rem); }
+.public-schedule-card .schedule-status {
+  margin-top: clamp(14px, 2vw, 24px);
+  font-size: clamp(1.25rem, 2.2vw, 2.25rem);
+}
+.public-schedule-card .schedule-time {
+  margin-top: 4px;
+  font-size: clamp(3.4rem, 6vw, 6.7rem);
+  line-height: .95;
+}
+.public-schedule-card .schedule-remaining {
+  margin-top: 6px;
+  font-size: clamp(1rem, 1.6vw, 1.5rem);
+}
+.public-schedule-card .schedule-mode {
+  margin-top: clamp(14px, 2vw, 24px);
+  padding-top: clamp(12px, 1.4vw, 18px);
+  font-size: clamp(.82rem, 1.15vw, 1.05rem);
+}
+.public-dashboard-error {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #25272d;
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-2);
+}
+
+@media (max-width: 980px) {
+  .main-content {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .chartroom-stage { padding-left: 0; padding-right: 0; }
+}
+
+@media (max-width: 760px) {
+  body.sidebar-collapsed .app-shell { display: block; }
+  .public-dashboard-shell { padding: 14px; }
+  .public-info-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(240px, auto) minmax(180px, auto) minmax(240px, auto);
+  }
+  .public-clock-card { grid-column: 1; }
+  .public-day-card #dayLabel { font-size: clamp(2.6rem, 14vw, 4.5rem); }
+  .public-schedule-card .schedule-time { font-size: clamp(3rem, 15vw, 5rem); }
+}
