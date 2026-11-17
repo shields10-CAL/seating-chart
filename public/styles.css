@@ -1776,3 +1776,23 @@ body.sidebar-focus .schedule-card .icon-button {
   .public-day-card #dayLabel { font-size: clamp(2.6rem, 14vw, 4.5rem); }
   .public-schedule-card .schedule-time { font-size: clamp(3rem, 15vw, 5rem); }
 }
+
+
+/* v2.10.1 layout polish */
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+body.sidebar-collapsed .main-content {
+  grid-column: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Give student names more breathing room from furniture while preserving the
+   name-above-seat relationship. */
+.chartroom-token {
+  gap: clamp(8px, calc(var(--chartroom-cell-px, 42px) * .18), 12px);
+}
+.chartroom-student-name {
+  translate: 0 clamp(3px, calc(var(--chartroom-cell-px, 42px) * .10), 6px);
+}
