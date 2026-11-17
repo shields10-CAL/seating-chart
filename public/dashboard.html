@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>CAL School Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css?v=2.10.0" />
+</head>
+<body class="public-dashboard">
+  <main class="public-dashboard-shell" aria-label="CAL school information dashboard">
+    <header class="public-dashboard-brand">
+      <img src="/static/assets/cal-logo.png" alt="CAL" />
+      <div>
+        <strong>School Dashboard</strong>
+        <span>Live schedule information</span>
+      </div>
+    </header>
+
+    <section class="public-info-grid">
+      <section class="sidebar-card clock-card public-clock-card" aria-live="polite">
+        <div class="clock-time" id="clockTime">--:--</div>
+        <div class="clock-date" id="clockDate">Loading date…</div>
+      </section>
+
+      <section class="day-card a-day public-day-card" id="dayCard" aria-live="polite">
+        <span class="day-dot" aria-hidden="true"></span>
+        <span id="dayLabel">A-Day</span>
+      </section>
+
+      <section class="sidebar-card schedule-card public-schedule-card" aria-live="polite">
+        <div class="card-heading-row">
+          <span class="overline">BELL SCHEDULE</span>
+        </div>
+        <div class="schedule-status" id="scheduleStatus">Checking schedule…</div>
+        <div class="schedule-time" id="scheduleTime">--:--</div>
+        <div class="schedule-remaining" id="scheduleRemaining">&nbsp;</div>
+        <div class="schedule-mode" id="scheduleModeLabel">Auto schedule</div>
+      </section>
+    </section>
+
+    <div class="public-dashboard-error" id="dashboardError" role="status" hidden></div>
+  </main>
+
+  <script src="/static/info-core.js?v=2.10.0"></script>
+  <script src="/static/dashboard.js?v=2.10.0"></script>
+</body>
+</html>
