@@ -53,7 +53,7 @@ app.use('/static', (req, res, next) => {
 
 function emptyState() {
   return {
-    version: 8,
+    version: 9,
     theme: 'light',
     dayType: 'A',
     dayOverride: 'auto',
@@ -117,8 +117,14 @@ app.get('/login', async (req, res) => {
 });
 
 app.get('/', requirePageAuth, (req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+app.get('/dashboard', (req, res) => res.sendFile(path.join(publicDir, 'dashboard.html')));
 app.get('/draw-chart', requirePageAuth, (req, res) => res.sendFile(path.join(publicDir, 'draw-chart', 'index.html')));
 app.get('/admin', requireAdminPage, (req, res) => res.sendFile(path.join(publicDir, 'admin.html')));
+
+app.get('/api/public/school-info', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.json({ schoolConfig: readSchoolConfig() });
+});
 
 app.get('/api/bootstrap', requireAuth, (req, res) => {
   const user = req.authSession.user;
