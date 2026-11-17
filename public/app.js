@@ -5,15 +5,26 @@
   const ATTENDANCE_LATE_INTERVAL_SECONDS = 4 * 60;
   const TABLE_HISTORY_LIMIT = 4;
   const MAX_STUDENTS = 60;
-  // Five calm color families, each with four tonal steps. Colors are used only as
-  // a persistent stroke around a student's seat circle so the chart stays calm.
-  const STUDENT_COLOR_PALETTE = [
-    '#8F4A4A', '#B86161', '#D58A8A', '#EBC0C0',
-    '#9A642E', '#B98045', '#D6A36C', '#EAC8A2',
-    '#426F58', '#5F8A70', '#83AA92', '#B4CEBD',
-    '#3F6693', '#5B7FA8', '#84A1C2', '#B6C8DC',
-    '#6D5485', '#8870A0', '#A78FB9', '#CCBBD7'
-  ];
+  // Stored student colors use the muted palette as the canonical identity slot.
+  // Display preferences can remap the same slot to a higher-contrast palette
+  // without changing the underlying student record.
+  const STUDENT_COLOR_PALETTES = {
+    muted: [
+      '#8F4A4A', '#B86161', '#D58A8A', '#EBC0C0',
+      '#9A642E', '#B98045', '#D6A36C', '#EAC8A2',
+      '#426F58', '#5F8A70', '#83AA92', '#B4CEBD',
+      '#3F6693', '#5B7FA8', '#84A1C2', '#B6C8DC',
+      '#6D5485', '#8870A0', '#A78FB9', '#CCBBD7'
+    ],
+    contrast: [
+      '#C62828', '#E53935', '#EF5350', '#FF7043',
+      '#EF6C00', '#FB8C00', '#F9A825', '#FDD835',
+      '#2E7D32', '#43A047', '#00897B', '#00ACC1',
+      '#1565C0', '#1E88E5', '#3949AB', '#5E35B1',
+      '#6A1B9A', '#8E24AA', '#AD1457', '#D81B60'
+    ]
+  };
+  const STUDENT_COLOR_PALETTE = STUDENT_COLOR_PALETTES.muted;
 
   let schoolConfig = {
     version: 1,
@@ -93,6 +104,8 @@
     shareChartClassSelect: $('#shareChartClassSelect'),
     confirmShareChartBtn: $('#confirmShareChartBtn'),
     shareChartCancelBtn: $('#shareChartCancelBtn'),
+    seatColorStyleInputs: $('input[name="seatColorStyle"]'),
+    seatPaletteInputs: $('input[name="seatPalette"]'),
     fixedSeatStudent: $('#fixedSeatStudent'),
     fixedSeatNumber: $('#fixedSeatNumber'),
     addFixedSeatBtn: $('#addFixedSeatBtn'),
@@ -132,6 +145,23 @@
       : null;
   }
 
+  function displayColorForStudent(value) {
+    const stored = validStudentColor(value) || STUDENT_COLOR_PALETTE[0];
+    const index = Math.max(0, STUDENT_COLOR_PALETTE.indexOf(stored));
+    const paletteName = state?.displaySettings?.palette === 'contrast' ? 'contrast' : 'muted';
+    return STUDENT_COLOR_PALETTES[paletteName][index] || STUDENT_COLOR_PALETTES[paletteName][0];
+  }
+
+  function readableInkForColor(hex) {
+    const normalized = String(hex || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(normalized)) return '#15171b';
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.58 ? '#15171b' : '#ffffff';
+  }
+
   function studentColorClass(value) {
     const color = validStudentColor(value) || STUDENT_COLOR_PALETTE[0];
     return `student-color-${Math.max(0, STUDENT_COLOR_PALETTE.indexOf(color))}`;
@@ -167,12 +197,13 @@
 
   function initialState() {
     return {
-      version: 9,
+      version: 10,
       dayType: 'A',
       dayOverride: 'auto',
       scheduleOverride: 'auto',
       sidebarWidth: 292,
       sidebarCollapsed: false,
+      displaySettings: { colorStyle: 'stroke', palette: 'muted' },
       activeClassId: '',
       attendanceStatus: { dismissedPeriodKey: '' },
       classes: {}
@@ -247,11 +278,15 @@
 
     const requestedActive = String(candidate.activeClassId || '');
     return {
-      version: 9,
+      version: 10,
       dayType: candidate.dayType === 'B' ? 'B' : 'A',
       dayOverride: ['auto', 'A', 'B'].includes(candidate.dayOverride) ? candidate.dayOverride : 'auto',
       sidebarWidth: Math.min(420, Math.max(190, Number(candidate.sidebarWidth) || 292)),
       sidebarCollapsed: Boolean(candidate.sidebarCollapsed),
+      displaySettings: {
+        colorStyle: candidate.displaySettings?.colorStyle === 'fill' ? 'fill' : 'stroke',
+        palette: candidate.displaySettings?.palette === 'contrast' ? 'contrast' : 'muted'
+      },
       scheduleOverride: ['auto', 'allPeriods', 'twoHour'].includes(candidate.scheduleOverride) ? candidate.scheduleOverride : 'auto',
       activeClassId: normalizedClasses[requestedActive] ? requestedActive : (Object.keys(normalizedClasses)[0] || ''),
       attendanceStatus: {
@@ -781,10 +816,11 @@
       const localRow = info.row - bounds.minRow + 1;
       const nameAlignment = nameAlignmentBySeat.get(info.number) || 'name-center';
       const labelPosition = Number.isInteger(info.tableRow) && info.tableRow < info.row ? 'label-below' : 'label-above';
-      const color = validStudentColor(student?.color) || studentColorForIndex(info.number - 1);
+      const color = student ? displayColorForStudent(student.color) : studentColorForIndex(info.number - 1);
+      const ink = readableInkForColor(color);
       return `
         <div class="chartroom-seat ${student ? '' : 'empty'} ${labelPosition} ${nameAlignment}" style="grid-column:${localColumn};grid-row:${localRow}" data-seat="${info.number}" title="Seat ${info.number}${student ? ` — ${escapeHtml(student.name)}` : ''}">
-          <div class="chartroom-token" style="--student-color:${escapeHtml(color)}" ${student ? `data-student-id="${escapeHtml(student.id)}" draggable="true"` : ''}>
+          <div class="chartroom-token" style="--student-color:${escapeHtml(color)};--student-ink:${escapeHtml(ink)}" ${student ? `data-student-id="${escapeHtml(student.id)}" draggable="true"` : ''}>
             <span class="chartroom-seat-circle">${info.number}</span>
             <span class="chartroom-student-name">${escapeHtml(student?.name || 'Open seat')}</span>
           </div>
@@ -882,6 +918,13 @@
     els.makeIndependentChartBtn.disabled = !hasClass || !linked;
     els.importCsvBtn.disabled = !hasClass;
     els.downloadCsvTemplateBtn.disabled = !hasClass;
+
+    for (const input of els.seatColorStyleInputs || []) {
+      input.checked = input.value === state.displaySettings.colorStyle;
+    }
+    for (const input of els.seatPaletteInputs || []) {
+      input.checked = input.value === state.displaySettings.palette;
+    }
 
     renderFixedSeatControls();
     renderSeparationControls();
@@ -1990,8 +2033,29 @@
     if (els.adminPanelLink) els.adminPanelLink.hidden = !roles.includes('admin');
   }
 
+  function applyDisplaySettings() {
+    const style = state.displaySettings?.colorStyle === 'fill' ? 'fill' : 'stroke';
+    const palette = state.displaySettings?.palette === 'contrast' ? 'contrast' : 'muted';
+    document.body.classList.toggle('seat-color-fill', style === 'fill');
+    document.body.classList.toggle('seat-color-stroke', style === 'stroke');
+    document.body.classList.toggle('seat-palette-contrast', palette === 'contrast');
+    document.body.classList.toggle('seat-palette-muted', palette === 'muted');
+  }
+
+  function updateDisplayPreference(kind, value) {
+    if (kind === 'style') {
+      state.displaySettings.colorStyle = value === 'fill' ? 'fill' : 'stroke';
+    } else if (kind === 'palette') {
+      state.displaySettings.palette = value === 'contrast' ? 'contrast' : 'muted';
+    }
+    applyDisplaySettings();
+    saveState();
+    renderTables();
+  }
+
   function renderAll() {
     applyUserChrome();
+    applyDisplaySettings();
     applySidebarWidth();
     applySidebarVisibility();
     renderDayToggle();
@@ -2008,6 +2072,16 @@
 
   els.sidebarCollapseBtn?.addEventListener('click', () => setSidebarCollapsed(true));
   els.sidebarRevealBtn?.addEventListener('click', () => setSidebarCollapsed(false));
+  for (const input of els.seatColorStyleInputs || []) {
+    input.addEventListener('change', () => {
+      if (input.checked) updateDisplayPreference('style', input.value);
+    });
+  }
+  for (const input of els.seatPaletteInputs || []) {
+    input.addEventListener('change', () => {
+      if (input.checked) updateDisplayPreference('palette', input.value);
+    });
+  }
 
   function setSidebarWidth(width, persist = false) {
     state.sidebarWidth = Math.min(420, Math.max(190, Math.round(width)));
