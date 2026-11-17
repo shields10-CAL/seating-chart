@@ -363,6 +363,7 @@
       const row = Number(seat.row);
       let tableId = null;
       let tableLabel = null;
+      let tableRow = null;
       let bestDistance = Infinity;
       for (const table of tableGroups) {
         for (const cell of table.cells || []) {
@@ -371,6 +372,7 @@
             bestDistance = distance;
             tableId = String(table.id || table.label || '');
             tableLabel = String(table.label || table.id || 'Table');
+            tableRow = Number(cell.row);
           }
         }
       }
@@ -381,7 +383,8 @@
         column,
         row,
         tableId: tableId || null,
-        tableLabel: tableLabel || null
+        tableLabel: tableLabel || null,
+        tableRow: Number.isInteger(tableRow) ? tableRow : null
       };
     }).filter(seat => Number.isInteger(seat.column) && Number.isInteger(seat.row))
       .sort((a, b) => a.number - b.number);
@@ -651,6 +654,7 @@
     const canvas = $('.chartroom-canvas', els.tableGrid);
     if (!canvas) return;
     const columns = Math.max(1, Number(canvas.dataset.columns) || 1);
+    const columnWeight = Math.max(1, Number(canvas.dataset.columnWeight) || columns);
     const rows = Math.max(1, Number(canvas.dataset.rows) || 1);
     const rect = els.tableGrid.getBoundingClientRect();
 
@@ -666,7 +670,7 @@
 
     // This custom metric drives seats, names, labels, and landmarks. It is
     // intentionally allowed to become smaller on Chromebook-sized screens.
-    const widthMetric = availableWidth / columns;
+    const widthMetric = availableWidth / columnWeight;
     const heightMetric = (availableHeight / rows) * 1.55;
     const cellMetric = Math.max(24, Math.min(72, widthMetric, heightMetric));
     canvas.style.setProperty('--chartroom-cell-px', `${cellMetric}px`);
@@ -723,10 +727,30 @@
     }
     const rowTemplate = Array.from({ length: bounds.rows }, (_, index) => {
       const sourceRow = bounds.minRow + index;
-      if (seatRows.has(sourceRow)) return '2.05fr';
-      if (objectRows.has(sourceRow)) return '1fr';
-      return '.72fr';
+      if (seatRows.has(sourceRow)) return '2.45fr';
+      if (objectRows.has(sourceRow)) return '.92fr';
+      return '.55fr';
     }).join(' ');
+
+    // Preserve logical room coordinates, but visually compress columns that
+    // contain no seat or room object. An empty column consumes half the width
+    // of an occupied column, which keeps intentional aisles without creating
+    // oversized blank gaps on wide displays.
+    const occupiedColumns = new Set(seatInfos.map(info => info.column));
+    for (const groups of [layout.tables, layout.doors, layout.teacherDesks, layout.projectorScreens]) {
+      for (const group of groups || []) {
+        for (const cell of group?.cells || []) {
+          const column = Number(cell?.column);
+          if (Number.isInteger(column)) occupiedColumns.add(column);
+        }
+      }
+    }
+    const columnWeights = Array.from({ length: bounds.columns }, (_, index) => {
+      const sourceColumn = bounds.minCol + index;
+      return occupiedColumns.has(sourceColumn) ? 1 : 0.5;
+    });
+    const columnTemplate = columnWeights.map(weight => `${weight}fr`).join(' ');
+    const columnWeight = columnWeights.reduce((sum, weight) => sum + weight, 0);
 
     // Every student name is above its seat. When two seats are immediately
     // adjacent, bias the labels outward so both remain readable while still
@@ -756,9 +780,10 @@
       const localColumn = info.column - bounds.minCol + 1;
       const localRow = info.row - bounds.minRow + 1;
       const nameAlignment = nameAlignmentBySeat.get(info.number) || 'name-center';
+      const labelPosition = Number.isInteger(info.tableRow) && info.tableRow < info.row ? 'label-below' : 'label-above';
       const color = validStudentColor(student?.color) || studentColorForIndex(info.number - 1);
       return `
-        <div class="chartroom-seat ${student ? '' : 'empty'} label-above ${nameAlignment}" style="grid-column:${localColumn};grid-row:${localRow}" data-seat="${info.number}" title="Seat ${info.number}${student ? ` — ${escapeHtml(student.name)}` : ''}">
+        <div class="chartroom-seat ${student ? '' : 'empty'} ${labelPosition} ${nameAlignment}" style="grid-column:${localColumn};grid-row:${localRow}" data-seat="${info.number}" title="Seat ${info.number}${student ? ` — ${escapeHtml(student.name)}` : ''}">
           <div class="chartroom-token" style="--student-color:${escapeHtml(color)}" ${student ? `data-student-id="${escapeHtml(student.id)}" draggable="true"` : ''}>
             <span class="chartroom-seat-circle">${info.number}</span>
             <span class="chartroom-student-name">${escapeHtml(student?.name || 'Open seat')}</span>
@@ -768,7 +793,7 @@
 
     els.tableGrid.className = 'chartroom-stage';
     els.tableGrid.innerHTML = `
-      <div class="chartroom-canvas" data-columns="${bounds.columns}" data-rows="${bounds.rows}" style="--chartroom-cols:${bounds.columns};--chartroom-rows:${bounds.rows};grid-template-rows:${rowTemplate}" aria-label="${escapeHtml(cls.name)} classroom layout">
+      <div class="chartroom-canvas" data-columns="${bounds.columns}" data-column-weight="${columnWeight}" data-rows="${bounds.rows}" style="--chartroom-cols:${bounds.columns};--chartroom-rows:${bounds.rows};grid-template-columns:${columnTemplate};grid-template-rows:${rowTemplate}" aria-label="${escapeHtml(cls.name)} classroom layout">
         ${displayGroupHtml(layout.tables, 'table', bounds)}
         ${displayGroupHtml(layout.doors, 'door', bounds)}
         ${displayGroupHtml(layout.teacherDesks, 'desk', bounds)}
