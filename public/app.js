@@ -49,6 +49,8 @@
     dayToggle: $('#dayToggle'),
     dayLabel: $('#dayLabel'),
     sidebarResizer: $('#sidebarResizer'),
+    sidebarCollapseBtn: $('#sidebarCollapseBtn'),
+    sidebarRevealBtn: $('#sidebarRevealBtn'),
     sidebarFocusBtn: $('#sidebarFocusBtn'),
     sidebarFocusLabel: $('#sidebarFocusLabel'),
     scheduleStatus: $('#scheduleStatus'),
@@ -165,11 +167,12 @@
 
   function initialState() {
     return {
-      version: 8,
+      version: 9,
       dayType: 'A',
       dayOverride: 'auto',
       scheduleOverride: 'auto',
       sidebarWidth: 292,
+      sidebarCollapsed: false,
       activeClassId: '',
       attendanceStatus: { dismissedPeriodKey: '' },
       classes: {}
@@ -244,10 +247,11 @@
 
     const requestedActive = String(candidate.activeClassId || '');
     return {
-      version: 8,
+      version: 9,
       dayType: candidate.dayType === 'B' ? 'B' : 'A',
       dayOverride: ['auto', 'A', 'B'].includes(candidate.dayOverride) ? candidate.dayOverride : 'auto',
       sidebarWidth: Math.min(420, Math.max(190, Number(candidate.sidebarWidth) || 292)),
+      sidebarCollapsed: Boolean(candidate.sidebarCollapsed),
       scheduleOverride: ['auto', 'allPeriods', 'twoHour'].includes(candidate.scheduleOverride) ? candidate.scheduleOverride : 'auto',
       activeClassId: normalizedClasses[requestedActive] ? requestedActive : (Object.keys(normalizedClasses)[0] || ''),
       attendanceStatus: {
@@ -491,35 +495,38 @@
   }
 
   function calendarInfoForDate(now) {
-    const key = calendarDateKey(now);
-    if (!schoolConfig.calendarConfigured) {
-      return { configured: false, exists: false, key, dayType: null, label: 'Calendar not configured', status: null, schedule: 'auto' };
-    }
-    const row = schoolConfig.calendar?.[key] || null;
-    if (!row) {
-      return { configured: true, exists: false, key, dayType: null, label: 'No calendar entry', status: null, schedule: 'auto' };
-    }
-    return {
-      configured: true,
-      exists: true,
-      key,
-      dayType: row.dayType === 'A' || row.dayType === 'B' ? row.dayType : null,
-      label: row.label || (row.dayType ? `${row.dayType}-Day` : (row.status === 'closed' ? 'No school' : 'School calendar')),
-      status: row.status || 'school',
-      schedule: row.schedule || 'auto',
-      lateStart: schoolConfig.lateStartDays.includes(now.getDay())
-    };
+    return window.CALInfo.calendarInfoForDate(schoolConfig, now);
   }
 
   function effectiveDayType(now = new Date()) {
-    if (state.dayOverride === 'A' || state.dayOverride === 'B') return state.dayOverride;
-    return calendarInfoForDate(now).dayType || state.dayType || 'A';
+    return window.CALInfo.effectiveDayType(schoolConfig, {
+      dayOverride: state.dayOverride,
+      scheduleOverride: state.scheduleOverride,
+      fallbackDayType: state.dayType
+    }, now);
   }
 
   function applySidebarWidth() {
     const width = Math.min(420, Math.max(190, Number(state.sidebarWidth) || 292));
     state.sidebarWidth = width;
     document.documentElement.style.setProperty('--sidebar-w', `${width}px`);
+  }
+
+  function applySidebarVisibility() {
+    const collapsed = Boolean(state.sidebarCollapsed);
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    els.sidebarCollapseBtn?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    els.sidebarRevealBtn?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+
+  function setSidebarCollapsed(collapsed, persist = true) {
+    state.sidebarCollapsed = Boolean(collapsed);
+    applySidebarVisibility();
+    if (persist) saveState();
+    requestAnimationFrame(() => {
+      fitRoomCanvas();
+      requestAnimationFrame(fitRoomCanvas);
+    });
   }
 
   function renderDayToggle(now = new Date()) {
@@ -647,22 +654,21 @@
     const rows = Math.max(1, Number(canvas.dataset.rows) || 1);
     const rect = els.tableGrid.getBoundingClientRect();
 
-    // Presentation mode is allowed to stretch the editor's square-cell geometry.
-    // The goal here is classroom readability: use most of the available page while
-    // preserving the exact row/column relationships from the drawing.
-    const availableWidth = Math.max(420, rect.width - 56);
-    const availableHeight = Math.max(460, rect.height - 28);
-    const targetWidth = Math.min(1100, availableWidth * 0.9);
-    const targetHeight = availableHeight * 0.96;
+    // Fill the available workspace on wide screens, but always scale down to
+    // the actual viewport on smaller devices instead of forcing overflow.
+    const horizontalInset = window.innerWidth <= 980 ? 12 : 18;
+    const verticalInset = window.innerHeight <= 760 ? 10 : 16;
+    const availableWidth = Math.max(240, rect.width - horizontalInset * 2);
+    const availableHeight = Math.max(260, rect.height - verticalInset * 2);
 
-    // Keep enough width per column for names above adjacent seats.
-    const minimumReadableWidth = Math.min(availableWidth, Math.max(620, columns * 96));
-    const width = Math.max(Math.min(targetWidth, availableWidth), minimumReadableWidth);
-    const height = Math.min(targetHeight, availableHeight);
+    canvas.style.width = `${Math.round(availableWidth)}px`;
+    canvas.style.height = `${Math.round(availableHeight)}px`;
 
-    canvas.style.width = `${Math.round(width)}px`;
-    canvas.style.height = `${Math.round(height)}px`;
-    const cellMetric = Math.max(38, Math.min(width / columns, (height / rows) * 1.6));
+    // This custom metric drives seats, names, labels, and landmarks. It is
+    // intentionally allowed to become smaller on Chromebook-sized screens.
+    const widthMetric = availableWidth / columns;
+    const heightMetric = (availableHeight / rows) * 1.55;
+    const cellMetric = Math.max(24, Math.min(72, widthMetric, heightMetric));
     canvas.style.setProperty('--chartroom-cell-px', `${cellMetric}px`);
   }
 
@@ -1868,76 +1874,23 @@
   }
 
   function minutesFromClock(value) {
-    const [h, m] = value.split(':').map(Number);
-    return h * 60 + m;
+    return window.CALInfo.minutesFromClock(value);
   }
 
   function formatClock(value) {
-    const [hourRaw, minuteRaw] = value.split(':').map(Number);
-    const suffix = hourRaw >= 12 ? 'PM' : 'AM';
-    const hour = hourRaw % 12 || 12;
-    return `${hour}:${String(minuteRaw).padStart(2, '0')} ${suffix}`;
+    return window.CALInfo.formatClock(value);
   }
 
   function scheduleForNow(now) {
-    const info = calendarInfoForDate(now);
-    const manualDay = state.dayOverride === 'A' || state.dayOverride === 'B';
-    const dayType = effectiveDayType(now);
-    const weekdayLateStart = schoolConfig.lateStartDays.includes(now.getDay());
-    const schedules = schoolConfig.bellSchedules || {};
-
-    const fromKey = (key, label) => {
-      const entries = Array.isArray(schedules[key]) ? schedules[key] : [];
-      if (!schoolConfig.bellConfigured || !entries.length) {
-        return { unconfigured: true, label: 'Bell schedule not configured', dayType, key };
-      }
-      return { key, label, entries, dayType };
-    };
-
-    if (state.scheduleOverride === 'twoHour') {
-      return fromKey('twoHour', `${dayType}-Day · 2-hour late start`);
-    }
-    if (state.scheduleOverride === 'allPeriods') {
-      const useLate = weekdayLateStart || info.schedule === 'allPeriodsLateStart';
-      return useLate
-        ? fromKey('allPeriodsLateStart', 'All periods · late start')
-        : fromKey('allPeriods', 'All periods schedule');
-    }
-
-    if (!manualDay) {
-      if (!schoolConfig.calendarConfigured) {
-        return { unconfigured: true, label: 'School calendar not configured', dayType, key: null };
-      }
-      if (!info.exists) {
-        return { closed: true, label: 'No calendar entry for today', info, dayType };
-      }
-      if (info.status === 'closed') {
-        return { closed: true, label: info.label || 'No school', info, dayType };
-      }
-      if (info.status === 'special' && info.schedule === 'auto') {
-        return { special: true, label: info.label || 'Special schedule', info, dayType };
-      }
-      if (info.schedule && info.schedule !== 'auto') {
-        const labels = {
-          regular: `${dayType}-Day · Regular schedule`,
-          lateStart: `${dayType}-Day · Late start`,
-          twoHour: `${dayType}-Day · 2-hour late start`,
-          allPeriods: 'All periods schedule',
-          allPeriodsLateStart: 'All periods · late start'
-        };
-        return fromKey(info.schedule, labels[info.schedule] || 'School schedule');
-      }
-    }
-
-    return weekdayLateStart
-      ? fromKey('lateStart', `${dayType}-Day · Late start`)
-      : fromKey('regular', `${dayType}-Day · Regular schedule`);
+    return window.CALInfo.scheduleForNow(schoolConfig, {
+      dayOverride: state.dayOverride,
+      scheduleOverride: state.scheduleOverride,
+      fallbackDayType: state.dayType
+    }, now);
   }
 
   function entryLabel(entry, dayType) {
-    if (entry.type === 'lunch') return 'Lunch';
-    if (entry.period) return `Period ${entry.period}`;
-    return `Period ${dayType === 'A' ? entry.slot : entry.slot + 4}`;
+    return window.CALInfo.entryLabel(entry, dayType);
   }
 
   function formatTabCountdown(secondsLeft) {
@@ -1960,77 +1913,29 @@
 
   function updateClockAndSchedule() {
     const now = new Date();
+    const snapshot = window.CALInfo.snapshot(schoolConfig, {
+      dayOverride: state.dayOverride,
+      scheduleOverride: state.scheduleOverride,
+      fallbackDayType: state.dayType
+    }, now);
+
     els.clockTime.textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     els.clockDate.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
     renderDayToggle(now);
 
-    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-    const schedule = scheduleForNow(now);
-    els.scheduleModeLabel.textContent = schedule.label;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+    els.scheduleStatus.textContent = snapshot.scheduleStatus;
+    els.scheduleTime.textContent = snapshot.scheduleTime;
+    els.scheduleRemaining.textContent = snapshot.scheduleRemaining;
+    els.scheduleModeLabel.textContent = snapshot.scheduleModeLabel;
 
-    if (isWeekend && state.dayOverride === 'auto' && state.scheduleOverride === 'auto') {
-      els.scheduleStatus.textContent = 'No classes scheduled';
-      els.scheduleTime.textContent = 'Weekend';
-      els.scheduleRemaining.textContent = 'Auto schedule resumes on the next configured school day';
-      updateAttendanceReminder(now, schedule, null);
-      updateTabTitle('Weekend');
-      return;
-    }
-
-    if (schedule.unconfigured) {
-      els.scheduleStatus.textContent = schedule.label || 'Schedule not configured';
-      els.scheduleTime.textContent = '—';
-      els.scheduleRemaining.textContent = currentUser?.role?.includes?.('admin') ? 'Configure this in the Admin panel' : 'Ask an administrator to configure the school schedule';
-      updateAttendanceReminder(now, schedule, null);
-      updateTabTitle('Schedule not configured');
-      return;
-    }
-
-    if (schedule.closed) {
-      els.scheduleStatus.textContent = schedule.info?.label || 'No classes scheduled';
-      els.scheduleTime.textContent = 'No classes';
-      els.scheduleRemaining.textContent = schedule.info?.label && schedule.info.label !== schedule.label ? schedule.info.label : '';
-      updateAttendanceReminder(now, schedule, null);
-      updateTabTitle(schedule.info?.label || 'No classes');
-      return;
-    }
-    if (schedule.special) {
-      els.scheduleStatus.textContent = 'Special schedule';
-      els.scheduleTime.textContent = 'See school calendar';
+    if (snapshot.schedule?.unconfigured && currentUser?.role?.includes?.('admin')) {
+      els.scheduleRemaining.textContent = 'Configure this in the Admin panel';
+    } else if (snapshot.schedule?.special) {
       els.scheduleRemaining.textContent = 'Use the override menu if needed';
-      updateAttendanceReminder(now, schedule, null);
-      updateTabTitle('Special schedule');
-      return;
-    }
-    const active = schedule.entries.find(entry => nowMinutes >= minutesFromClock(entry.start) && nowMinutes < minutesFromClock(entry.end));
-    if (active) {
-      const isLunch = active.type === 'lunch';
-      els.scheduleStatus.textContent = isLunch ? 'Lunch ends' : `${entryLabel(active, schedule.dayType)} ends`;
-      els.scheduleTime.textContent = formatClock(active.end);
-      const secondsLeft = Math.max(0, Math.floor(minutesFromClock(active.end) * 60 - (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds())));
-      const mins = Math.floor(secondsLeft / 60);
-      const secs = secondsLeft % 60;
-      els.scheduleRemaining.textContent = `${mins}m ${String(secs).padStart(2, '0')}s remaining`;
-      updateAttendanceReminder(now, schedule, active);
-      updateTabTitle(isLunch ? 'Lunch' : entryLabel(active, schedule.dayType), secondsLeft);
-      return;
     }
 
-    updateAttendanceReminder(now, schedule, null);
-    const next = schedule.entries.find(entry => nowMinutes < minutesFromClock(entry.start));
-    if (next) {
-      els.scheduleStatus.textContent = `Next: ${entryLabel(next, schedule.dayType)}`;
-      els.scheduleTime.textContent = formatClock(next.start);
-      els.scheduleRemaining.textContent = 'Starts at the time shown';
-      updateTabTitle(`Next ${entryLabel(next, schedule.dayType)}`);
-    } else {
-      els.scheduleStatus.textContent = 'School day complete';
-      const lastEntry = schedule.entries[schedule.entries.length - 1];
-      els.scheduleTime.textContent = lastEntry?.end ? formatClock(lastEntry.end) : '—';
-      els.scheduleRemaining.textContent = 'No more scheduled periods today';
-      updateTabTitle('School day complete');
-    }
+    updateAttendanceReminder(now, snapshot.schedule, snapshot.activeEntry);
+    updateTabTitle(snapshot.titleLabel, snapshot.secondsLeft);
   }
 
   function renderScheduleDialog() {
@@ -2063,6 +1968,7 @@
   function renderAll() {
     applyUserChrome();
     applySidebarWidth();
+    applySidebarVisibility();
     renderDayToggle();
     renderHeader();
     renderTables();
@@ -2074,6 +1980,9 @@
     renderScheduleDialog();
     els.scheduleDialog.showModal();
   });
+
+  els.sidebarCollapseBtn?.addEventListener('click', () => setSidebarCollapsed(true));
+  els.sidebarRevealBtn?.addEventListener('click', () => setSidebarCollapsed(false));
 
   function setSidebarWidth(width, persist = false) {
     state.sidebarWidth = Math.min(420, Math.max(190, Math.round(width)));
@@ -2088,6 +1997,8 @@
 
   async function setSidebarFocus(enabled) {
     document.body.classList.toggle('sidebar-focus', enabled);
+    if (enabled) document.body.classList.remove('sidebar-collapsed');
+    else applySidebarVisibility();
     updateSidebarFocusButton(enabled);
     if (enabled) {
       try {
