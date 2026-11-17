@@ -9,9 +9,17 @@ import { readSchoolConfig, writeSchoolConfig, schoolConfigSummary, parseBellSche
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const publicDir = path.resolve('public');
+const plainHttpDeployment = String(process.env.BETTER_AUTH_URL || '')
+  .trim()
+  .toLowerCase()
+  .startsWith('http://');
 
 app.disable('x-powered-by');
 app.use(helmet({
+  // Internal-network deployments may intentionally use plain HTTP.
+  // BETTER_AUTH_URL controls this automatically so HTTPS deployments
+  // retain Helmet's normal HSTS and upgrade-insecure-requests behavior.
+  ...(plainHttpDeployment ? { strictTransportSecurity: false } : {}),
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -22,7 +30,8 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
-      frameAncestors: ["'self'"]
+      frameAncestors: ["'self'"],
+      ...(plainHttpDeployment ? { upgradeInsecureRequests: null } : {})
     }
   },
   crossOriginEmbedderPolicy: false
