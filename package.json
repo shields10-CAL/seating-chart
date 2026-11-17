@@ -1,6 +1,6 @@
 {
   "name": "cal-seating-chart",
-  "version": "2.10.1",
+  "version": "2.11.0",
   "private": true,
   "type": "module",
   "description": "CAL teacher seating chart with drawn-room layouts, local accounts, SQLite persistence, and a Material-inspired UI.",
