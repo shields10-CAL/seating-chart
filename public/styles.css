@@ -1796,3 +1796,151 @@ body.sidebar-collapsed .main-content {
 .chartroom-student-name {
   translate: 0 clamp(3px, calc(var(--chartroom-cell-px, 42px) * .10), 6px);
 }
+
+
+/* v2.11 room density + TV dashboard fit */
+
+/* Put the class title/count over the room instead of reserving their own row.
+   This gives the seating canvas nearly the full viewport height. */
+@media (min-width: 761px) {
+  .main-content {
+    position: relative;
+    padding: 0 14px;
+  }
+
+  .topbar {
+    position: absolute;
+    top: clamp(14px, 1.8vh, 24px);
+    left: clamp(18px, 2vw, 34px);
+    right: clamp(18px, 2vw, 34px);
+    z-index: 24;
+    width: auto;
+    margin: 0;
+    pointer-events: none;
+    align-items: flex-start;
+  }
+
+  .room {
+    width: 100%;
+    height: 100vh;
+    min-height: 100vh;
+    flex: 1 1 auto;
+  }
+
+  .chartroom-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    padding: 8px 4px 70px;
+  }
+}
+
+/* Names sit on the side of each seat that is away from its nearest table.
+   These !important rules intentionally override the legacy global
+   "always above" rule retained earlier in the stylesheet. */
+.chartroom-token {
+  gap: clamp(10px, calc(var(--chartroom-cell-px, 42px) * .24), 16px);
+}
+
+.chartroom-student-name {
+  max-width: min(240px, calc(var(--chartroom-cell-px, 42px) * 5.2));
+  font-size: clamp(.62rem, calc(var(--chartroom-cell-px, 42px) * .205), .92rem);
+  translate: 0;
+}
+
+.chartroom-seat.label-above .chartroom-student-name {
+  order: -1 !important;
+  translate: 0 clamp(-10px, calc(var(--chartroom-cell-px, 42px) * -.16), -5px);
+}
+
+.chartroom-seat.label-below .chartroom-student-name {
+  order: 2 !important;
+  translate: 0 clamp(5px, calc(var(--chartroom-cell-px, 42px) * .16), 10px);
+}
+
+/* Public dashboard bell card: keep every element inside the card at all
+   viewport sizes, with the mode/footer anchored to the bottom. */
+.public-schedule-card {
+  justify-content: flex-start;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.public-schedule-card .schedule-status {
+  flex: 0 0 auto;
+  font-size: clamp(1.15rem, min(2vw, 3.2vh), 2rem);
+}
+
+.public-schedule-card .schedule-time {
+  flex: 0 0 auto;
+  font-size: clamp(3rem, min(5.5vw, 10vh), 5.9rem);
+  line-height: .9;
+}
+
+.public-schedule-card .schedule-remaining {
+  flex: 0 0 auto;
+  font-size: clamp(.95rem, min(1.5vw, 2.5vh), 1.4rem);
+}
+
+.public-schedule-card .schedule-mode {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: clamp(10px, 1.4vh, 18px);
+  font-size: clamp(.78rem, min(1.05vw, 1.9vh), 1rem);
+}
+
+/* Smart-TV browsers often expose a short CSS viewport even on a 1080p panel. */
+@media (max-height: 800px) and (min-width: 761px) {
+  .public-dashboard-shell {
+    padding: 14px 18px;
+    gap: 12px;
+  }
+
+  .public-dashboard-brand {
+    min-height: 30px;
+  }
+
+  .public-dashboard-brand img {
+    width: 70px;
+  }
+
+  .public-info-grid {
+    grid-template-rows: minmax(190px, 1fr) minmax(220px, .82fr);
+    gap: 12px;
+  }
+
+  .public-clock-card,
+  .public-day-card,
+  .public-schedule-card {
+    padding: 20px 24px;
+  }
+
+  .public-clock-card .clock-time {
+    font-size: clamp(4.6rem, 12vh, 7.5rem);
+  }
+
+  .public-clock-card .clock-date {
+    margin-top: 10px;
+    font-size: clamp(1rem, 2.4vh, 1.35rem);
+  }
+
+  .public-day-card #dayLabel {
+    font-size: clamp(2.8rem, 7.5vh, 4.8rem);
+  }
+
+  .public-schedule-card .overline {
+    font-size: .78rem;
+  }
+
+  .public-schedule-card .schedule-status {
+    margin-top: 10px;
+  }
+
+  .public-schedule-card .schedule-time {
+    margin-top: 2px;
+  }
+
+  .public-schedule-card .schedule-remaining {
+    margin-top: 5px;
+  }
+}
