@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f7fb" />
   <title>Classroom Seating Chart</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2.11.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.12.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -166,6 +166,39 @@
           </section>
         </div>
 
+        <section class="dashboard-section display-settings-section">
+          <div class="section-title-row">
+            <div>
+              <h3>Seat color display</h3>
+              <p>Choose how student identity colors appear on the projected seating chart. These settings only change presentation, not assignments.</p>
+            </div>
+          </div>
+          <div class="display-settings-grid">
+            <fieldset class="display-setting-group">
+              <legend>Color treatment</legend>
+              <label class="display-choice">
+                <input type="radio" name="seatColorStyle" value="stroke" />
+                <span><strong>Stroke</strong><small>White seats with colored outlines.</small></span>
+              </label>
+              <label class="display-choice">
+                <input type="radio" name="seatColorStyle" value="fill" />
+                <span><strong>Fill</strong><small>Fill each seat with its student color.</small></span>
+              </label>
+            </fieldset>
+            <fieldset class="display-setting-group">
+              <legend>Palette</legend>
+              <label class="display-choice">
+                <input type="radio" name="seatPalette" value="muted" />
+                <span><strong>Muted</strong><small>Calmer classroom colors.</small></span>
+              </label>
+              <label class="display-choice">
+                <input type="radio" name="seatPalette" value="contrast" />
+                <span><strong>High contrast</strong><small>Brighter colors for distant viewing.</small></span>
+              </label>
+            </fieldset>
+          </div>
+        </section>
+
         <section class="dashboard-section">
           <div class="section-title-row">
             <div>
@@ -323,7 +356,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/static/info-core.js?v=2.11.0"></script>
-  <script src="/static/app.js?v=2.11.0"></script>
+  <script src="/static/info-core.js?v=2.12.0"></script>
+  <script src="/static/app.js?v=2.12.0"></script>
 </body>
 </html>
