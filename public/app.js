@@ -1030,14 +1030,17 @@
 
   function separationGroupsForClass(cls) {
     if (!cls) return [];
-    const groups = Array.isArray(cls.separationGroups) ? cls.separationGroups : [];
     const validIds = new Set(cls.students.map(student => student.id));
-    const cleaned = groups
-      .filter(Array.isArray)
-      .map(group => [...new Set(group.map(String))].filter(id => validIds.has(id)))
-      .filter(group => group.length >= 2);
-    if (cleaned.length) return cleaned;
 
+    if (Array.isArray(cls.separationGroups)) {
+      return cls.separationGroups
+        .filter(Array.isArray)
+        .map(group => [...new Set(group.map(String))].filter(id => validIds.has(id)))
+        .filter(group => group.length >= 2);
+    }
+
+    // Pre-v2.13 fallback only. normalizeState converts this to separationGroups
+    // immediately so a deliberately cleared group list never reappears.
     const legacy = [...new Set((cls.separationPool || []).map(String))].filter(id => validIds.has(id));
     return legacy.length >= 2 ? [legacy] : [];
   }
