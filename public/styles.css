@@ -2707,3 +2707,9 @@ body.sidebar-focus .schedule-mode,
     right: 14px;
   }
 }
+
+
+.public-timer-card[hidden],
+.public-timer-card [hidden] {
+  display: none !important;
+}
