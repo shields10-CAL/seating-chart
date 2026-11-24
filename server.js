@@ -53,13 +53,14 @@ app.use('/static', (req, res, next) => {
 
 function emptyState() {
   return {
-    version: 10,
+    version: 11,
     theme: 'light',
     dayType: 'A',
     dayOverride: 'auto',
     scheduleOverride: 'auto',
     sidebarWidth: 292,
     displaySettings: { colorStyle: 'stroke', palette: 'muted' },
+    attendanceReminderEnabled: true,
     activeClassId: '',
     attendanceStatus: { dismissedPeriodKey: '' },
     classes: {}
