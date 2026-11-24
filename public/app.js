@@ -684,6 +684,13 @@
         const rowSpan = groupBounds.maxRow - groupBounds.minRow + 1;
         return `<div class="chartroom-door-marker" style="grid-column:${localStartCol} / span ${colSpan};grid-row:${localStartRow} / span ${rowSpan}" title="${escapeHtml(group.label || 'Door')}" aria-label="${escapeHtml(group.label || 'Door')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12a2 2 0 0 1 2 2v16h-2V5H7v16H5V3Zm4 3h6v13H9V6Zm4.25 6.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></div>`;
       }
+      const localStartCol = groupBounds.minCol - bounds.minCol + 1;
+      const localStartRow = groupBounds.minRow - bounds.minRow + 1;
+      const colSpan = groupBounds.maxCol - groupBounds.minCol + 1;
+      const rowSpan = groupBounds.maxRow - groupBounds.minRow + 1;
+      const vertical = rowSpan > colSpan;
+      const orientation = colSpan > rowSpan ? 'horizontal' : (vertical ? 'vertical' : 'block');
+
       const keySet = new Set(groupBounds.cells.map(cell => `${cell.column}:${cell.row}`));
       const cells = groupBounds.cells.map(cell => {
         const localColumn = cell.column - bounds.minCol + 1;
@@ -694,14 +701,8 @@
           !keySet.has(`${cell.column}:${cell.row + 1}`) ? 'edge-bottom' : '',
           !keySet.has(`${cell.column - 1}:${cell.row}`) ? 'edge-left' : ''
         ].filter(Boolean).join(' ');
-        return `<div class="chartroom-object chartroom-${type} ${edges}" style="grid-column:${localColumn};grid-row:${localRow}"></div>`;
+        return `<div class="chartroom-object chartroom-${type} furniture-${orientation} ${edges}" style="grid-column:${localColumn};grid-row:${localRow}"></div>`;
       }).join('');
-
-      const localStartCol = groupBounds.minCol - bounds.minCol + 1;
-      const localStartRow = groupBounds.minRow - bounds.minRow + 1;
-      const colSpan = groupBounds.maxCol - groupBounds.minCol + 1;
-      const rowSpan = groupBounds.maxRow - groupBounds.minRow + 1;
-      const vertical = rowSpan > colSpan;
       const label = `<div class="chartroom-object-label chartroom-${type}-label ${vertical ? 'vertical-label' : ''}" style="grid-column:${localStartCol} / span ${colSpan};grid-row:${localStartRow} / span ${rowSpan}"><span>${escapeHtml(group.label || type)}</span></div>`;
       return cells + label;
     }).join('');
@@ -2051,6 +2052,11 @@
   }
 
   function updateAttendanceReminder(now, schedule, activeEntry) {
+    if (state.attendanceReminderEnabled === false) {
+      attendanceRuntime = { periodKey: null, lastDingMarker: '' };
+      hideAttendanceReminder();
+      return;
+    }
     if (!activeEntry || activeEntry.type === 'lunch' || !schedule?.key) {
       attendanceRuntime = { periodKey: null, lastDingMarker: '' };
       hideAttendanceReminder();
