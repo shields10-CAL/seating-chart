@@ -2186,3 +2186,530 @@ body.seat-palette-contrast .chartroom-seat:not(.empty) .chartroom-seat-circle {
     overflow: visible;
   }
 }
+
+
+/* v2.13 staff rollout: stable header, grouped rules, shared info board, timer */
+
+/* Seating chart header is a real layout row again, never part of the canvas. */
+@media (min-width: 761px) {
+  .main-content {
+    position: relative;
+    height: 100vh;
+    min-height: 0;
+    padding: 0 14px 72px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    position: relative;
+    inset: auto;
+    z-index: 20;
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 104px;
+    margin: 0;
+    padding: 14px 20px 10px;
+    align-items: flex-start;
+    background: #fff;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    pointer-events: auto;
+    box-sizing: border-box;
+  }
+
+  .topbar h1 {
+    font-size: clamp(2.25rem, 4.2vw, 4.3rem);
+    line-height: .92;
+  }
+
+  .room {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+
+  .chartroom-stage {
+    height: 100%;
+    min-height: 0;
+    padding: 6px 4px 66px;
+  }
+}
+
+/* Furniture thickness no longer depends on the logical grid row height. */
+.chartroom-table.furniture-horizontal {
+  align-self: center;
+  height: clamp(22px, calc(var(--chartroom-cell-px, 42px) * .44), 36px);
+  min-height: 0;
+}
+.chartroom-table.furniture-vertical {
+  justify-self: center;
+  width: clamp(22px, calc(var(--chartroom-cell-px, 42px) * .44), 36px);
+  min-width: 0;
+}
+.chartroom-table.furniture-block {
+  min-height: clamp(34px, calc(var(--chartroom-cell-px, 42px) * .7), 58px);
+}
+
+/* Individual separation groups. */
+.separation-draft {
+  margin-top: 10px;
+}
+.separation-draft-card,
+.separation-group-card {
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 11px 12px;
+  background: var(--surface);
+}
+.separation-groups-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.separation-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.separation-group-heading strong {
+  font-size: .8rem;
+}
+.separation-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.compact-empty {
+  min-height: 38px;
+  padding: 9px 11px;
+}
+.danger-text {
+  border: 0;
+  background: transparent;
+  color: #9d2f2f;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+/* Teacher preference switch. */
+.settings-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+}
+.settings-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.settings-switch-track {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #d7d9de;
+  transition: background .15s ease;
+}
+.settings-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(20,24,31,.2);
+  transition: transform .15s ease;
+}
+.settings-switch input:checked + .settings-switch-track {
+  background: var(--primary);
+}
+.settings-switch input:checked + .settings-switch-track::after {
+  transform: translateX(20px);
+}
+.settings-switch input:focus-visible + .settings-switch-track {
+  outline: 2px solid #4c7bd9;
+  outline-offset: 2px;
+}
+.settings-switch-label {
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+/* Canonical full-screen information board. The signed-in Full-screen info mode
+   and the public /dashboard intentionally share this same final rule set. */
+body.sidebar-focus .sidebar,
+.public-dashboard-board {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100svh;
+  padding: clamp(64px, 8vh, 88px) clamp(24px, 3vw, 48px) clamp(22px, 3vh, 38px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.04fr) minmax(0, .96fr);
+  gap: clamp(16px, 2.4vw, 36px);
+  background: #fff;
+  border: 0;
+  overflow: hidden;
+}
+
+body.sidebar-focus .sidebar-brand,
+.public-dashboard-board .sidebar-brand {
+  position: absolute;
+  top: clamp(14px, 1.8vh, 22px);
+  left: clamp(20px, 2.5vw, 38px);
+  z-index: 4;
+  min-height: 34px;
+}
+body.sidebar-focus .sidebar-brand img,
+.public-dashboard-board .sidebar-brand img {
+  width: clamp(68px, 5vw, 96px);
+}
+body.sidebar-focus .sidebar-collapse-button {
+  display: none;
+}
+
+body.sidebar-focus .clock-card,
+.public-dashboard-board .clock-card {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 0;
+  height: auto;
+  padding: clamp(24px, 3vw, 48px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-radius: clamp(20px, 2vw, 32px);
+}
+body.sidebar-focus .clock-time,
+.public-dashboard-board .clock-time {
+  font-size: clamp(5.8rem, min(14vw, 20vh), 12.5rem);
+  line-height: .82;
+  letter-spacing: -.07em;
+}
+body.sidebar-focus .clock-date,
+.public-dashboard-board .clock-date {
+  margin-top: clamp(12px, 1.7vh, 24px);
+  font-size: clamp(1.2rem, min(2.3vw, 3.5vh), 2.1rem);
+}
+
+body.sidebar-focus .day-card,
+body.sidebar-focus .schedule-card,
+.public-dashboard-board .day-card,
+.public-dashboard-board .schedule-card,
+.public-dashboard-board .public-timer-card {
+  min-height: 0;
+  height: auto;
+  padding: clamp(22px, 2.8vw, 44px);
+  border-radius: clamp(22px, 2.5vw, 36px);
+}
+body.sidebar-focus .day-card,
+.public-dashboard-board .day-card {
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  column-gap: clamp(16px, 2vw, 30px);
+}
+body.sidebar-focus .day-card #dayLabel,
+.public-dashboard-board .day-card #dayLabel {
+  grid-column: 2;
+  align-self: center;
+  font-size: clamp(3.2rem, min(7vw, 10vh), 6.8rem);
+  line-height: .9;
+}
+body.sidebar-focus .day-dot,
+.public-dashboard-board .day-dot {
+  width: clamp(18px, 2vw, 28px);
+  height: clamp(18px, 2vw, 28px);
+}
+
+body.sidebar-focus .schedule-card,
+.public-dashboard-board .schedule-card {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+body.sidebar-focus .overline,
+.public-dashboard-board .overline {
+  font-size: clamp(.82rem, min(1.2vw, 1.8vh), 1.12rem);
+}
+body.sidebar-focus .schedule-status,
+.public-dashboard-board .schedule-status {
+  margin-top: clamp(12px, 1.6vh, 22px);
+  font-size: clamp(1.35rem, min(2.4vw, 3.8vh), 2.45rem);
+  line-height: 1.05;
+}
+body.sidebar-focus .schedule-time,
+.public-dashboard-board .schedule-time {
+  margin-top: 5px;
+  font-size: clamp(3.8rem, min(7.4vw, 10vh), 7.2rem);
+  line-height: .9;
+}
+body.sidebar-focus .schedule-remaining,
+.public-dashboard-board .schedule-remaining {
+  margin-top: 9px;
+  font-size: clamp(1.1rem, min(1.8vw, 2.8vh), 1.72rem);
+  line-height: 1.08;
+}
+body.sidebar-focus .schedule-mode,
+.public-dashboard-board .schedule-mode {
+  margin-top: auto;
+  padding-top: clamp(10px, 1.5vh, 18px);
+  font-size: clamp(.86rem, min(1.25vw, 1.9vh), 1.15rem);
+}
+
+.public-dashboard-tools {
+  position: absolute;
+  top: clamp(14px, 1.8vh, 22px);
+  right: clamp(20px, 2.5vw, 38px);
+  z-index: 8;
+  display: flex;
+  gap: 8px;
+}
+.public-tool-button {
+  width: 46px;
+  height: 46px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+}
+.public-tool-button svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.schedule-swap-button {
+  width: 44px;
+  height: 44px;
+}
+.public-dashboard-board .schedule-swap-button {
+  position: absolute;
+  top: clamp(16px, 2vw, 26px);
+  right: clamp(16px, 2vw, 26px);
+}
+.schedule-card.schedule-swapped .schedule-time {
+  order: 3;
+  margin-top: 8px;
+  font-size: clamp(1.3rem, min(2.2vw, 3.2vh), 2.2rem);
+  font-weight: 750;
+}
+.schedule-card.schedule-swapped .schedule-remaining {
+  order: 2;
+  margin-top: 5px;
+  font-size: clamp(3.8rem, min(7.4vw, 10vh), 7.2rem);
+  line-height: .9;
+  font-weight: 850;
+  letter-spacing: -.035em;
+}
+.schedule-card.schedule-swapped .schedule-mode {
+  order: 4;
+}
+.schedule-card.schedule-swapped .card-heading-row { order: 0; }
+.schedule-card.schedule-swapped .schedule-status { order: 1; }
+
+/* Timer appears beside the clock, creating a true four-card dashboard. */
+.public-dashboard-board.timer-visible .clock-card {
+  grid-column: 1;
+}
+.public-dashboard-board .public-timer-card {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  background: #e6efff;
+  border: 1px solid #c8d8f6;
+  color: #071b36;
+  overflow: hidden;
+}
+.timer-card-heading {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.timer-card-heading .icon-button {
+  font-size: 1.5rem;
+}
+.timer-setup,
+.timer-running {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.timer-input {
+  width: min(68%, 330px);
+  border: 0;
+  border-bottom: 2px solid #a9c5f5;
+  outline: 0;
+  background: transparent;
+  color: #071b36;
+  text-align: center;
+  font: inherit;
+  font-size: clamp(3rem, min(6vw, 9vh), 6.2rem);
+  font-weight: 500;
+}
+.timer-presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.timer-presets button,
+.timer-running-actions button {
+  min-width: 88px;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #c8dcff;
+  color: #071b36;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.timer-start-button {
+  width: calc(100% - 40px);
+  min-height: 64px;
+  margin-top: auto;
+  border: 0;
+  border-radius: 999px;
+  background: #0b57d0;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.timer-start-button svg {
+  width: 30px;
+  height: 30px;
+  fill: currentColor;
+}
+.timer-progress-ring {
+  --timer-progress: 0deg;
+  position: relative;
+  width: min(62%, 390px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#0b57d0 var(--timer-progress), #c8dcff 0);
+}
+.timer-progress-ring::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: #e6efff;
+}
+.timer-running-time {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(3rem, min(6vw, 8vh), 5.5rem);
+  font-weight: 500;
+}
+.timer-running-actions {
+  width: 100%;
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.timer-running-actions button {
+  width: 100%;
+  border-radius: 999px;
+  min-height: 60px;
+}
+.timer-running-actions button:first-child {
+  outline: 3px solid #2b6fe9;
+  outline-offset: -3px;
+}
+
+/* Public board and signed-in focus view now use the same dimensions. */
+.public-dashboard {
+  background: #fff;
+  overflow: hidden;
+}
+
+/* On shorter TV browser viewports, shrink type before allowing any clipping. */
+@media (max-height: 760px) and (min-width: 761px) {
+  body.sidebar-focus .sidebar,
+  .public-dashboard-board {
+    padding-top: 54px;
+    padding-bottom: 16px;
+    gap: 14px;
+  }
+  body.sidebar-focus .clock-time,
+  .public-dashboard-board .clock-time {
+    font-size: clamp(4.7rem, min(12vw, 17vh), 9rem);
+  }
+  body.sidebar-focus .schedule-time,
+  .public-dashboard-board .schedule-time,
+  .schedule-card.schedule-swapped .schedule-remaining {
+    font-size: clamp(3rem, min(6vw, 8.5vh), 5rem);
+  }
+  .public-dashboard-board .public-timer-card {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .public-dashboard {
+    overflow: auto;
+  }
+  .public-dashboard-board {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    padding: 64px 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: visible;
+  }
+  .public-dashboard-board .clock-card,
+  .public-dashboard-board .day-card,
+  .public-dashboard-board .schedule-card,
+  .public-dashboard-board .public-timer-card {
+    width: 100%;
+    min-height: 220px;
+  }
+  .public-dashboard-board .sidebar-brand {
+    left: 14px;
+  }
+  .public-dashboard-tools {
+    right: 14px;
+  }
+}
+
+
+.public-timer-card[hidden],
+.public-timer-card [hidden] {
+  display: none !important;
+}

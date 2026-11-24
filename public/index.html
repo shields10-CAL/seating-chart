@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f7fb" />
   <title>Classroom Seating Chart</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2.12.1" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.13.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -202,6 +202,20 @@
         <section class="dashboard-section">
           <div class="section-title-row">
             <div>
+              <h3>Attendance reminder</h3>
+              <p>Choose whether this teacher account receives the periodic attendance reminder during class.</p>
+            </div>
+            <label class="settings-switch">
+              <input id="attendanceReminderEnabled" type="checkbox" />
+              <span class="settings-switch-track" aria-hidden="true"></span>
+              <span class="settings-switch-label">Enabled</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-title-row">
+            <div>
               <h3>Fixed seating</h3>
               <p>Add only the students who must stay in a specific seat. The list is empty by default.</p>
             </div>
@@ -223,18 +237,20 @@
         <section class="dashboard-section">
           <div class="section-title-row">
             <div>
-              <h3>Separation pool</h3>
-              <p>Students in this pool are kept at different table groups and may never occupy neighboring grid squares, including diagonals.</p>
+              <h3>Separation groups</h3>
+              <p>Create independent groups of students who must be kept apart. Constraints apply only within each group.</p>
             </div>
           </div>
           <div class="separation-builder">
             <label class="field grow">
-              <span>Add student</span>
+              <span>Add student to new group</span>
               <select id="separationPoolStudent"></select>
             </label>
-            <button class="filled-button" id="addSeparationPoolBtn" type="button">Add to pool</button>
+            <button class="outlined-button" id="addSeparationPoolBtn" type="button">Add student</button>
+            <button class="filled-button" id="createSeparationGroupBtn" type="button">Create group</button>
           </div>
-          <div class="rules-list" id="separationPoolList"></div>
+          <div class="separation-draft" id="separationDraftList"></div>
+          <div class="rules-list separation-groups-list" id="separationPoolList"></div>
         </section>
 
         <section class="dashboard-section">
@@ -356,7 +372,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/static/info-core.js?v=2.12.1"></script>
-  <script src="/static/app.js?v=2.12.1"></script>
+  <script src="/static/info-core.js?v=2.13.0"></script>
+  <script src="/static/app.js?v=2.13.0"></script>
 </body>
 </html>

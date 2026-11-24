@@ -112,7 +112,10 @@
     fixedSeatList: $('#fixedSeatList'),
     separationPoolStudent: $('#separationPoolStudent'),
     addSeparationPoolBtn: $('#addSeparationPoolBtn'),
+    createSeparationGroupBtn: $('#createSeparationGroupBtn'),
+    separationDraftList: $('#separationDraftList'),
     separationPoolList: $('#separationPoolList'),
+    attendanceReminderEnabled: $('#attendanceReminderEnabled'),
     buddyStudentA: $('#buddyStudentA'),
     buddyStudentB: $('#buddyStudentB'),
     buddyStudentC: $('#buddyStudentC'),
@@ -197,13 +200,14 @@
 
   function initialState() {
     return {
-      version: 10,
+      version: 11,
       dayType: 'A',
       dayOverride: 'auto',
       scheduleOverride: 'auto',
       sidebarWidth: 292,
       sidebarCollapsed: false,
       displaySettings: { colorStyle: 'stroke', palette: 'muted' },
+      attendanceReminderEnabled: true,
       activeClassId: '',
       attendanceStatus: { dismissedPeriodKey: '' },
       classes: {}
@@ -247,6 +251,20 @@
         const cleaned = history.map(item => String(item)).filter(Boolean).slice(-TABLE_HISTORY_LIMIT);
         if (cleaned.length) tableHistory[studentId] = cleaned;
       }
+      const legacySeparationPool = (Array.isArray(value.separationPool) ? value.separationPool.map(String) : legacyPool)
+        .filter((studentId, index, list) => validStudentIds.has(studentId) && list.indexOf(studentId) === index);
+      const separationGroups = [];
+      if (Array.isArray(value.separationGroups)) {
+        for (const rawGroup of value.separationGroups) {
+          if (!Array.isArray(rawGroup)) continue;
+          const group = [...new Set(rawGroup.map(String))].filter(studentId => validStudentIds.has(studentId));
+          if (group.length >= 2) separationGroups.push(group);
+        }
+      }
+      if (!separationGroups.length && legacySeparationPool.length >= 2) {
+        separationGroups.push([...legacySeparationPool]);
+      }
+
       normalizedClasses[id] = {
         id,
         name: String(value.name || id),
@@ -255,8 +273,9 @@
         layoutSourceClassId: typeof value.layoutSourceClassId === 'string' && value.layoutSourceClassId.trim()
           ? value.layoutSourceClassId.trim()
           : null,
-        separationPool: (Array.isArray(value.separationPool) ? value.separationPool.map(String) : legacyPool)
-          .filter((studentId, index, list) => validStudentIds.has(studentId) && list.indexOf(studentId) === index),
+        // Retain the original flat field for rollback compatibility.
+        separationPool: legacySeparationPool,
+        separationGroups,
         buddyGroups,
         tableHistory
       };
@@ -278,7 +297,7 @@
 
     const requestedActive = String(candidate.activeClassId || '');
     return {
-      version: 10,
+      version: 11,
       dayType: candidate.dayType === 'B' ? 'B' : 'A',
       dayOverride: ['auto', 'A', 'B'].includes(candidate.dayOverride) ? candidate.dayOverride : 'auto',
       sidebarWidth: Math.min(420, Math.max(190, Number(candidate.sidebarWidth) || 292)),
@@ -287,6 +306,7 @@
         colorStyle: candidate.displaySettings?.colorStyle === 'fill' ? 'fill' : 'stroke',
         palette: candidate.displaySettings?.palette === 'contrast' ? 'contrast' : 'muted'
       },
+      attendanceReminderEnabled: candidate.attendanceReminderEnabled !== false,
       scheduleOverride: ['auto', 'allPeriods', 'twoHour'].includes(candidate.scheduleOverride) ? candidate.scheduleOverride : 'auto',
       activeClassId: normalizedClasses[requestedActive] ? requestedActive : (Object.keys(normalizedClasses)[0] || ''),
       attendanceStatus: {
@@ -352,6 +372,8 @@
   let attendanceAudioContext = null;
   let attendanceRuntime = { periodKey: null, lastDingMarker: '' };
   let attendanceStatus = state.attendanceStatus || { dismissedPeriodKey: '' };
+  let separationDraftClassId = null;
+  let separationDraftIds = [];
 
   function activeClass() {
     return state.classes[state.activeClassId];
@@ -662,6 +684,13 @@
         const rowSpan = groupBounds.maxRow - groupBounds.minRow + 1;
         return `<div class="chartroom-door-marker" style="grid-column:${localStartCol} / span ${colSpan};grid-row:${localStartRow} / span ${rowSpan}" title="${escapeHtml(group.label || 'Door')}" aria-label="${escapeHtml(group.label || 'Door')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12a2 2 0 0 1 2 2v16h-2V5H7v16H5V3Zm4 3h6v13H9V6Zm4.25 6.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></div>`;
       }
+      const localStartCol = groupBounds.minCol - bounds.minCol + 1;
+      const localStartRow = groupBounds.minRow - bounds.minRow + 1;
+      const colSpan = groupBounds.maxCol - groupBounds.minCol + 1;
+      const rowSpan = groupBounds.maxRow - groupBounds.minRow + 1;
+      const vertical = rowSpan > colSpan;
+      const orientation = colSpan > rowSpan ? 'horizontal' : (vertical ? 'vertical' : 'block');
+
       const keySet = new Set(groupBounds.cells.map(cell => `${cell.column}:${cell.row}`));
       const cells = groupBounds.cells.map(cell => {
         const localColumn = cell.column - bounds.minCol + 1;
@@ -672,14 +701,8 @@
           !keySet.has(`${cell.column}:${cell.row + 1}`) ? 'edge-bottom' : '',
           !keySet.has(`${cell.column - 1}:${cell.row}`) ? 'edge-left' : ''
         ].filter(Boolean).join(' ');
-        return `<div class="chartroom-object chartroom-${type} ${edges}" style="grid-column:${localColumn};grid-row:${localRow}"></div>`;
+        return `<div class="chartroom-object chartroom-${type} furniture-${orientation} ${edges}" style="grid-column:${localColumn};grid-row:${localRow}"></div>`;
       }).join('');
-
-      const localStartCol = groupBounds.minCol - bounds.minCol + 1;
-      const localStartRow = groupBounds.minRow - bounds.minRow + 1;
-      const colSpan = groupBounds.maxCol - groupBounds.minCol + 1;
-      const rowSpan = groupBounds.maxRow - groupBounds.minRow + 1;
-      const vertical = rowSpan > colSpan;
       const label = `<div class="chartroom-object-label chartroom-${type}-label ${vertical ? 'vertical-label' : ''}" style="grid-column:${localStartCol} / span ${colSpan};grid-row:${localStartRow} / span ${rowSpan}"><span>${escapeHtml(group.label || type)}</span></div>`;
       return cells + label;
     }).join('');
@@ -925,6 +948,9 @@
     for (const input of els.seatPaletteInputs || []) {
       input.checked = input.value === state.displaySettings.palette;
     }
+    if (els.attendanceReminderEnabled) {
+      els.attendanceReminderEnabled.checked = state.attendanceReminderEnabled !== false;
+    }
 
     renderFixedSeatControls();
     renderSeparationControls();
@@ -989,6 +1015,10 @@
     if (!student) return;
     cls.students = cls.students.filter(s => s.id !== studentId);
     cls.separationPool = (cls.separationPool || []).filter(id => id !== studentId);
+    cls.separationGroups = (cls.separationGroups || [])
+      .map(group => group.filter(id => id !== studentId))
+      .filter(group => group.length >= 2);
+    syncLegacySeparationPool(cls);
     cls.buddyGroups = (cls.buddyGroups || []).map(group => group.filter(id => id !== studentId)).filter(group => group.length >= 2);
     delete cls.tableHistory?.[studentId];
     repairSeats(cls);
@@ -998,34 +1028,123 @@
     showToast(`${student.name} removed from ${cls.name}.`);
   }
 
+  function separationGroupsForClass(cls) {
+    if (!cls) return [];
+    const validIds = new Set(cls.students.map(student => student.id));
+
+    if (Array.isArray(cls.separationGroups)) {
+      return cls.separationGroups
+        .filter(Array.isArray)
+        .map(group => [...new Set(group.map(String))].filter(id => validIds.has(id)))
+        .filter(group => group.length >= 2);
+    }
+
+    // Pre-v2.13 fallback only. normalizeState converts this to separationGroups
+    // immediately so a deliberately cleared group list never reappears.
+    const legacy = [...new Set((cls.separationPool || []).map(String))].filter(id => validIds.has(id));
+    return legacy.length >= 2 ? [legacy] : [];
+  }
+
+  function syncLegacySeparationPool(cls) {
+    if (!cls) return;
+    cls.separationGroups = separationGroupsForClass(cls).map(group => [...group]);
+    cls.separationPool = [...new Set(cls.separationGroups.flat())];
+  }
+
+  function separationGroupsForStudent(cls, studentId) {
+    return separationGroupsForClass(cls).filter(group => group.includes(studentId));
+  }
+
+  function separationGroupConflictsWithBuddy(cls, group) {
+    const set = new Set(group);
+    return (cls.buddyGroups || []).some(buddy => buddy.filter(id => set.has(id)).length > 1);
+  }
+
+  function ensureSeparationDraft(cls) {
+    if (!cls) {
+      separationDraftClassId = null;
+      separationDraftIds = [];
+      return;
+    }
+    if (separationDraftClassId !== cls.id) {
+      separationDraftClassId = cls.id;
+      separationDraftIds = [];
+    }
+    const liveIds = new Set(cls.students.map(student => student.id));
+    separationDraftIds = separationDraftIds.filter(id => liveIds.has(id));
+  }
+
   function renderSeparationControls() {
     const cls = activeClass();
     if (!cls) {
       els.separationPoolStudent.innerHTML = '<option value="">Create a class first…</option>';
       els.addSeparationPoolBtn.disabled = true;
+      els.createSeparationGroupBtn.disabled = true;
+      els.separationDraftList.innerHTML = '';
       els.separationPoolList.innerHTML = '<div class="empty-state">No class selected.</div>';
       return;
     }
-    const pool = new Set(cls.separationPool || []);
-    const available = cls.students.filter(student => !pool.has(student.id));
+
+    ensureSeparationDraft(cls);
+    const draftSet = new Set(separationDraftIds);
+    const available = cls.students.filter(student => !draftSet.has(student.id));
     els.separationPoolStudent.innerHTML = '<option value="">Choose student…</option>' +
       available.map(student => `<option value="${escapeHtml(student.id)}">${escapeHtml(student.name)}</option>`).join('');
     els.addSeparationPoolBtn.disabled = !available.length;
+    els.createSeparationGroupBtn.disabled = separationDraftIds.length < 2;
 
-    if (!pool.size) {
-      els.separationPoolList.innerHTML = '<div class="empty-state">No students in the separation pool.</div>';
+    if (separationDraftIds.length) {
+      els.separationDraftList.innerHTML = `<div class="separation-draft-card"><strong>New group</strong><div class="separation-chip-row">${separationDraftIds.map(studentId => {
+        const student = cls.students.find(entry => entry.id === studentId);
+        return student ? `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-separation-draft="${escapeHtml(studentId)}" aria-label="Remove ${escapeHtml(student.name)} from new group">×</button></span>` : '';
+      }).join('')}</div></div>`;
+      $$('[data-remove-separation-draft]', els.separationDraftList).forEach(button => {
+        button.addEventListener('click', () => {
+          separationDraftIds = separationDraftIds.filter(id => id !== button.dataset.removeSeparationDraft);
+          renderSeparationControls();
+        });
+      });
+    } else {
+      els.separationDraftList.innerHTML = '<div class="empty-state compact-empty">Add at least two students, then create the group.</div>';
+    }
+
+    const groups = separationGroupsForClass(cls);
+    cls.separationGroups = groups.map(group => [...group]);
+    if (!groups.length) {
+      els.separationPoolList.innerHTML = '<div class="empty-state">No separation groups for this class.</div>';
       return;
     }
 
-    els.separationPoolList.innerHTML = [...pool].map(studentId => {
-      const student = cls.students.find(s => s.id === studentId);
-      if (!student) return '';
-      return `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-pool-student="${escapeHtml(student.id)}" aria-label="Remove ${escapeHtml(student.name)} from separation pool">×</button></span>`;
+    els.separationPoolList.innerHTML = groups.map((group, groupIndex) => {
+      const chips = group.map(studentId => {
+        const student = cls.students.find(entry => entry.id === studentId);
+        if (!student) return '';
+        return `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-separation-member data-group-index="${groupIndex}" data-student-id="${escapeHtml(studentId)}" aria-label="Remove ${escapeHtml(student.name)} from separation group ${groupIndex + 1}">×</button></span>`;
+      }).join('');
+      return `<div class="separation-group-card">
+        <div class="separation-group-heading"><strong>Group ${groupIndex + 1}</strong><button class="text-button danger-text" type="button" data-remove-separation-group="${groupIndex}">Remove group</button></div>
+        <div class="separation-chip-row">${chips}</div>
+      </div>`;
     }).join('');
 
-    $$('[data-remove-pool-student]', els.separationPoolList).forEach(button => {
+    $$('[data-remove-separation-group]', els.separationPoolList).forEach(button => {
       button.addEventListener('click', () => {
-        cls.separationPool = cls.separationPool.filter(id => id !== button.dataset.removePoolStudent);
+        cls.separationGroups.splice(Number(button.dataset.removeSeparationGroup), 1);
+        syncLegacySeparationPool(cls);
+        saveState();
+        renderSeparationControls();
+      });
+    });
+
+    $$('[data-remove-separation-member]', els.separationPoolList).forEach(button => {
+      button.addEventListener('click', () => {
+        const groupIndex = Number(button.dataset.groupIndex);
+        const studentId = String(button.dataset.studentId || '');
+        const group = cls.separationGroups[groupIndex];
+        if (!Array.isArray(group) || !studentId) return;
+        cls.separationGroups[groupIndex] = group.filter(id => id !== studentId);
+        cls.separationGroups = cls.separationGroups.filter(entry => entry.length >= 2);
+        syncLegacySeparationPool(cls);
         saveState();
         renderSeparationControls();
       });
@@ -1036,17 +1155,39 @@
     const cls = activeClass();
     const studentId = els.separationPoolStudent.value;
     if (!cls || !studentId) return showToast('Choose a student first.');
-    cls.separationPool = Array.isArray(cls.separationPool) ? cls.separationPool : [];
-    if (cls.separationPool.includes(studentId)) return showToast('That student is already in the separation pool.');
-    const buddyGroup = (cls.buddyGroups || []).find(group => group.includes(studentId));
-    if (buddyGroup) {
-      const otherInPool = buddyGroup.find(id => id !== studentId && cls.separationPool.includes(id));
-      if (otherInPool) return showToast('Two students in the same buddy group cannot both be in the separation pool.');
+    ensureSeparationDraft(cls);
+    if (separationDraftIds.includes(studentId)) return;
+
+    const proposed = [...separationDraftIds, studentId];
+    if (separationGroupConflictsWithBuddy(cls, proposed)) {
+      return showToast('Students in the same buddy group cannot also be in the same separation group.');
     }
-    cls.separationPool.push(studentId);
+
+    separationDraftIds = proposed;
+    renderSeparationControls();
+  }
+
+  function createSeparationGroup() {
+    const cls = activeClass();
+    if (!cls) return;
+    ensureSeparationDraft(cls);
+    const group = [...new Set(separationDraftIds)];
+    if (group.length < 2) return showToast('Add at least two students to create a separation group.');
+    if (separationGroupConflictsWithBuddy(cls, group)) {
+      return showToast('Students in the same buddy group cannot also be in the same separation group.');
+    }
+
+    cls.separationGroups = separationGroupsForClass(cls).map(entry => [...entry]);
+    const signature = [...group].sort().join('|');
+    if (cls.separationGroups.some(entry => [...entry].sort().join('|') === signature)) {
+      return showToast('That separation group already exists.');
+    }
+    cls.separationGroups.push(group);
+    syncLegacySeparationPool(cls);
+    separationDraftIds = [];
     saveState();
     renderSeparationControls();
-    showToast('Student added to the separation pool.');
+    showToast(`Separation group of ${group.length} created.`);
   }
 
   function renderBuddyControls() {
@@ -1098,8 +1239,9 @@
     cls.buddyGroups = Array.isArray(cls.buddyGroups) ? cls.buddyGroups : [];
     const alreadyGrouped = new Set(cls.buddyGroups.flat());
     if (group.some(id => alreadyGrouped.has(id))) return showToast('Each student can belong to only one buddy group.');
-    const pool = new Set(cls.separationPool || []);
-    if (group.filter(id => pool.has(id)).length > 1) return showToast('Only one student from a buddy group can be in the separation pool.');
+    if (separationGroupsForClass(cls).some(separationGroup => group.filter(id => separationGroup.includes(id)).length > 1)) {
+      return showToast('Students cannot be in the same buddy group and the same separation group.');
+    }
     cls.buddyGroups.push(group);
     saveState();
     renderBuddyControls();
@@ -1133,7 +1275,7 @@
     const duplicate = Object.values(state.classes).some(c => c.name.toLowerCase() === name.toLowerCase());
     if (duplicate) return showToast('A class with that name already exists.');
     const id = makeId('class');
-    state.classes[id] = { id, name, students: [], layout: null, layoutSourceClassId: null, separationPool: [], buddyGroups: [], tableHistory: {} };
+    state.classes[id] = { id, name, students: [], layout: null, layoutSourceClassId: null, separationPool: [], separationGroups: [], buddyGroups: [], tableHistory: {} };
     state.activeClassId = id;
     saveState();
     els.newClassDialog.close();
@@ -1381,6 +1523,7 @@
     });
 
     cls.separationPool = [...pool];
+    cls.separationGroups = pool.size >= 2 ? [[...pool]] : [];
     cls.buddyGroups = [];
     cls.tableHistory = {};
     saveState();
@@ -1500,7 +1643,7 @@
     return map;
   }
 
-  function validateFixedRules(cls, byId, poolIds, buddyGroups) {
+  function validateFixedRules(cls, byId, separationGroups, buddyGroups) {
     const fixedSeats = new Set();
     for (const student of cls.students.filter(student => student.fixed)) {
       if (!validSeat(student.seat, cls)) return `${student.name} has an invalid fixed seat.`;
@@ -1508,13 +1651,17 @@
       fixedSeats.add(Number(student.seat));
     }
 
-    for (let i = 0; i < poolIds.length; i++) {
-      const a = byId.get(poolIds[i]);
-      if (!a?.fixed) continue;
-      for (let j = i + 1; j < poolIds.length; j++) {
-        const b = byId.get(poolIds[j]);
-        if (!b?.fixed) continue;
-        if (!separationPairAllowed(cls, a.seat, b.seat)) return `${a.name} and ${b.name} have fixed seats that are too close for the separation pool.`;
+    for (const group of separationGroups) {
+      for (let i = 0; i < group.length; i++) {
+        const a = byId.get(group[i]);
+        if (!a?.fixed) continue;
+        for (let j = i + 1; j < group.length; j++) {
+          const b = byId.get(group[j]);
+          if (!b?.fixed) continue;
+          if (!separationPairAllowed(cls, a.seat, b.seat)) {
+            return `${a.name} and ${b.name} have fixed seats that are too close for their separation group.`;
+          }
+        }
       }
     }
 
@@ -1534,20 +1681,29 @@
     const byId = new Map(cls.students.map(student => [student.id, student]));
     const seatInfos = layoutSeatInfos(cls);
     const allSeats = seatInfos.map(info => info.number);
-    const poolIds = [...new Set((cls.separationPool || []).filter(id => byId.has(id)))];
-    const poolSet = new Set(poolIds);
+    const separationGroups = separationGroupsForClass(cls)
+      .map(group => group.filter(id => byId.has(id)))
+      .filter(group => group.length >= 2);
+    const separatedIds = [...new Set(separationGroups.flat())];
+    const separatedSet = new Set(separatedIds);
     const buddyGroups = (cls.buddyGroups || []).filter(group => Array.isArray(group) && group.length >= 2 && group.length <= 3 && group.every(id => byId.has(id)));
     const buddyMap = buddyGroupMap({ ...cls, buddyGroups });
 
-    for (const group of buddyGroups) {
-      if (group.filter(id => poolSet.has(id)).length > 1) return { error: 'Only one student from a buddy group can be in the separation pool.' };
+    for (const buddyGroup of buddyGroups) {
+      if (separationGroups.some(group => buddyGroup.filter(id => group.includes(id)).length > 1)) {
+        return { error: 'Students cannot be in the same buddy group and the same separation group.' };
+      }
     }
 
     const tableIds = new Set(seatInfos.map(info => info.tableId).filter(Boolean));
-    if (tableIds.size && poolIds.length > tableIds.size) return { error: `The separation pool has ${poolIds.length} students but the drawn room has only ${tableIds.size} table groups.` };
+    for (const group of separationGroups) {
+      if (tableIds.size && group.length > tableIds.size) {
+        return { error: `A separation group has ${group.length} students but the drawn room has only ${tableIds.size} table groups.` };
+      }
+    }
     if (buddyGroups.length && !tableIds.size) return { error: 'Buddy groups require table objects in the seating chart.' };
 
-    const fixedRuleError = validateFixedRules(cls, byId, poolIds, buddyGroups);
+    const fixedRuleError = validateFixedRules(cls, byId, separationGroups, buddyGroups);
     if (fixedRuleError) return { error: fixedRuleError };
 
     const fixed = cls.students.filter(student => student.fixed);
@@ -1556,7 +1712,7 @@
     const movingStudents = cls.students.filter(student => !student.fixed);
     const currentSeatById = new Map(cls.students.map(student => [student.id, Number(student.seat)]));
     const recentTablesById = new Map(movingStudents.map(student => [student.id, recentTablesForStudent(cls, student.id)]));
-    const currentPoolSeatSet = new Set(poolIds.map(id => currentSeatById.get(id)).filter(seat => validSeat(seat, cls)));
+    const currentSeparatedSeatSet = new Set(separatedIds.map(id => currentSeatById.get(id)).filter(seat => validSeat(seat, cls)));
     const candidates = [];
     const maxRestarts = 90;
     const maxNodes = 120000;
@@ -1568,7 +1724,7 @@
         const group = buddyMap.get(student.id);
         const fixedBuddy = group?.some(id => byId.get(id)?.fixed);
         let weight = randomFloat();
-        if (poolSet.has(student.id)) weight += 12;
+        if (separatedSet.has(student.id)) weight += 12;
         if (group) weight += 7;
         if (fixedBuddy) weight += 14;
         return { student, weight };
@@ -1578,10 +1734,13 @@
         const info = seatInfoFor(cls, seat);
         if (!info) return false;
 
-        if (poolSet.has(student.id)) {
-          for (const otherId of poolIds) {
-            if (otherId === student.id || !placements.has(otherId)) continue;
-            if (!separationPairAllowed(cls, seat, placements.get(otherId))) return false;
+        if (separatedSet.has(student.id)) {
+          for (const separationGroup of separationGroups) {
+            if (!separationGroup.includes(student.id)) continue;
+            for (const otherId of separationGroup) {
+              if (otherId === student.id || !placements.has(otherId)) continue;
+              if (!separationPairAllowed(cls, seat, placements.get(otherId))) return false;
+            }
           }
         }
 
@@ -1611,11 +1770,15 @@
           if (seat === oldSeat) penalty += 28;
           if (oldTable && candidateTable === oldTable) penalty += 9;
           penalty += tableHistoryPenalty(recentTablesById.get(student.id) || [], candidateTable);
-          if (poolSet.has(student.id)) {
-            if (currentPoolSeatSet.has(seat)) penalty += 4;
-            const placedPoolSeats = poolIds.filter(id => placements.has(id)).map(id => placements.get(id));
-            if (placedPoolSeats.length) {
-              const minDistance = Math.min(...placedPoolSeats.map(otherSeat => seatDistanceSquared(cls, seat, otherSeat)));
+          if (separatedSet.has(student.id)) {
+            if (currentSeparatedSeatSet.has(seat)) penalty += 4;
+            const relatedIds = [...new Set(separationGroups
+              .filter(group => group.includes(student.id))
+              .flat()
+              .filter(id => id !== student.id))];
+            const placedRelatedSeats = relatedIds.filter(id => placements.has(id)).map(id => placements.get(id));
+            if (placedRelatedSeats.length) {
+              const minDistance = Math.min(...placedRelatedSeats.map(otherSeat => seatDistanceSquared(cls, seat, otherSeat)));
               penalty -= Math.min(8, minDistance * .18);
             }
           }
@@ -1648,8 +1811,14 @@
         if (history.length && !history.includes(String(newTable))) novelty += 3;
         novelty -= tableHistoryPenalty(history, newTable) * .55;
       }
-      const poolGeometry = poolScore(cls, placements, poolIds);
-      if (Number.isFinite(poolGeometry.min)) novelty += poolGeometry.min * .12 + poolGeometry.total * .015;
+      let separationMin = Infinity;
+      let separationTotal = 0;
+      for (const group of separationGroups) {
+        const geometry = poolScore(cls, placements, group);
+        if (Number.isFinite(geometry.min)) separationMin = Math.min(separationMin, geometry.min);
+        separationTotal += geometry.total;
+      }
+      if (Number.isFinite(separationMin)) novelty += separationMin * .12 + separationTotal * .015;
       candidates.push({ placements: new Map(placements), novelty });
     }
 
@@ -1661,10 +1830,12 @@
   }
 
   function seatingRulesSatisfied(cls, placements) {
-    const poolIds = [...new Set((cls.separationPool || []).filter(id => placements.has(id)))];
-    for (let i = 0; i < poolIds.length; i++) {
-      for (let j = i + 1; j < poolIds.length; j++) {
-        if (!separationPairAllowed(cls, placements.get(poolIds[i]), placements.get(poolIds[j]))) return false;
+    for (const group of separationGroupsForClass(cls)) {
+      const ids = group.filter(id => placements.has(id));
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          if (!separationPairAllowed(cls, placements.get(ids[i]), placements.get(ids[j]))) return false;
+        }
       }
     }
     for (const group of cls.buddyGroups || []) {
@@ -1885,6 +2056,11 @@
   }
 
   function updateAttendanceReminder(now, schedule, activeEntry) {
+    if (state.attendanceReminderEnabled === false) {
+      attendanceRuntime = { periodKey: null, lastDingMarker: '' };
+      hideAttendanceReminder();
+      return;
+    }
     if (!activeEntry || activeEntry.type === 'lunch' || !schedule?.key) {
       attendanceRuntime = { periodKey: null, lastDingMarker: '' };
       hideAttendanceReminder();
@@ -2208,6 +2384,12 @@
     els.csvFileInput.value = '';
   });
   els.addSeparationPoolBtn.addEventListener('click', addSeparationPoolStudent);
+  els.createSeparationGroupBtn.addEventListener('click', createSeparationGroup);
+  els.attendanceReminderEnabled?.addEventListener('change', () => {
+    state.attendanceReminderEnabled = els.attendanceReminderEnabled.checked;
+    if (!state.attendanceReminderEnabled) hideAttendanceReminder();
+    saveState();
+  });
   els.addBuddyBtn.addEventListener('click', addBuddyRule);
 
   // Close dialogs when clicking the dimmed backdrop.

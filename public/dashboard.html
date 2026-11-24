@@ -5,44 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#ffffff" />
   <title>CAL School Dashboard</title>
-  <link rel="stylesheet" href="/static/styles.css?v=2.12.1" />
+  <link rel="stylesheet" href="/static/styles.css?v=2.13.0" />
 </head>
 <body class="public-dashboard">
-  <main class="public-dashboard-shell" aria-label="CAL school information dashboard">
-    <header class="public-dashboard-brand">
+  <main class="public-dashboard-board" aria-label="CAL school information dashboard">
+    <div class="sidebar-brand public-dashboard-brand">
       <img src="/static/assets/cal-logo.png" alt="CAL" />
-      <div>
+      <div class="sidebar-brand-copy">
         <strong>School Dashboard</strong>
         <span>Live schedule information</span>
       </div>
-    </header>
+    </div>
 
-    <section class="public-info-grid">
-      <section class="sidebar-card clock-card public-clock-card" aria-live="polite">
-        <div class="clock-time" id="clockTime">--:--</div>
-        <div class="clock-date" id="clockDate">Loading date…</div>
-      </section>
+    <div class="public-dashboard-tools" aria-label="Dashboard tools">
+      <button class="icon-button public-tool-button" id="timerToggleBtn" type="button" aria-label="Show timer" title="Timer" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 1H9v2h6V1Zm-1 13h-2V8h2v6Zm3.03-7.03 1.42-1.42A10.93 10.93 0 0 0 13 3.05V5.1A9 9 0 1 1 6.1 8H3.8A11 11 0 1 0 17.03 6.97Z"/></svg>
+      </button>
+    </div>
 
-      <section class="day-card a-day public-day-card" id="dayCard" aria-live="polite">
-        <span class="day-dot" aria-hidden="true"></span>
-        <span id="dayLabel">A-Day</span>
-      </section>
+    <section class="sidebar-card clock-card public-clock-card" aria-live="polite">
+      <div class="clock-time" id="clockTime">--:--</div>
+      <div class="clock-date" id="clockDate">Loading date…</div>
+    </section>
 
-      <section class="sidebar-card schedule-card public-schedule-card" aria-live="polite">
-        <div class="card-heading-row">
-          <span class="overline">BELL SCHEDULE</span>
+    <section class="sidebar-card public-timer-card" id="timerCard" hidden aria-label="Classroom timer">
+      <div class="timer-card-heading">
+        <span class="overline">TIMER</span>
+        <button class="icon-button" id="timerCloseBtn" type="button" aria-label="Hide timer" title="Hide timer">×</button>
+      </div>
+      <div class="timer-setup" id="timerSetup">
+        <input class="timer-input" id="timerInput" type="text" inputmode="numeric" value="5:00" aria-label="Timer duration in minutes and seconds" />
+        <div class="timer-presets" aria-label="Add time">
+          <button type="button" data-add-timer="30">+0:30</button>
+          <button type="button" data-add-timer="60">+1:00</button>
+          <button type="button" data-add-timer="300">+5:00</button>
         </div>
-        <div class="schedule-status" id="scheduleStatus">Checking schedule…</div>
-        <div class="schedule-time" id="scheduleTime">--:--</div>
-        <div class="schedule-remaining" id="scheduleRemaining">&nbsp;</div>
-        <div class="schedule-mode" id="scheduleModeLabel">Auto schedule</div>
-      </section>
+        <button class="timer-start-button" id="timerStartBtn" type="button" aria-label="Start timer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+        </button>
+      </div>
+      <div class="timer-running" id="timerRunning" hidden>
+        <div class="timer-progress-ring" id="timerProgressRing">
+          <div class="timer-running-time" id="timerRemaining">5:00</div>
+        </div>
+        <div class="timer-running-actions">
+          <button id="timerPauseBtn" type="button" aria-label="Pause timer">
+            <span id="timerPauseIcon">Ⅱ</span>
+          </button>
+          <button id="timerResetBtn" type="button" aria-label="Reset timer">↶</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="day-card a-day public-day-card" id="dayCard" aria-live="polite">
+      <span class="day-dot" aria-hidden="true"></span>
+      <span id="dayLabel">A-Day</span>
+    </section>
+
+    <section class="sidebar-card schedule-card public-schedule-card" id="scheduleCard" aria-live="polite">
+      <div class="card-heading-row">
+        <span class="overline">BELL SCHEDULE</span>
+        <button class="icon-button schedule-swap-button" id="scheduleSwapBtn" type="button" aria-label="Swap end time and countdown size" title="Swap end time and countdown">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3.5-3.5L16 2l6 6-6 6-1.5-1.5L18 9H7V7Zm10 10H6l3.5 3.5L8 22l-6-6 6-6 1.5 1.5L6 15h11v2Z"/></svg>
+        </button>
+      </div>
+      <div class="schedule-status" id="scheduleStatus">Checking schedule…</div>
+      <div class="schedule-time" id="scheduleTime">--:--</div>
+      <div class="schedule-remaining" id="scheduleRemaining">&nbsp;</div>
+      <div class="schedule-mode" id="scheduleModeLabel">Auto schedule</div>
     </section>
 
     <div class="public-dashboard-error" id="dashboardError" role="status" hidden></div>
   </main>
 
-  <script src="/static/info-core.js?v=2.12.1"></script>
-  <script src="/static/dashboard.js?v=2.12.1"></script>
+  <script src="/static/info-core.js?v=2.13.0"></script>
+  <script src="/static/dashboard.js?v=2.13.0"></script>
 </body>
 </html>
