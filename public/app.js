@@ -1119,7 +1119,7 @@
       const chips = group.map(studentId => {
         const student = cls.students.find(entry => entry.id === studentId);
         if (!student) return '';
-        return `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-separation-member="${groupIndex}:${escapeHtml(studentId)}" aria-label="Remove ${escapeHtml(student.name)} from separation group ${groupIndex + 1}">×</button></span>`;
+        return `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-separation-member data-group-index="${groupIndex}" data-student-id="${escapeHtml(studentId)}" aria-label="Remove ${escapeHtml(student.name)} from separation group ${groupIndex + 1}">×</button></span>`;
       }).join('');
       return `<div class="separation-group-card">
         <div class="separation-group-heading"><strong>Group ${groupIndex + 1}</strong><button class="text-button danger-text" type="button" data-remove-separation-group="${groupIndex}">Remove group</button></div>
@@ -1138,10 +1138,10 @@
 
     $$('[data-remove-separation-member]', els.separationPoolList).forEach(button => {
       button.addEventListener('click', () => {
-        const [groupText, studentId] = String(button.dataset.removeSeparationMember || '').split(':');
-        const groupIndex = Number(groupText);
+        const groupIndex = Number(button.dataset.groupIndex);
+        const studentId = String(button.dataset.studentId || '');
         const group = cls.separationGroups[groupIndex];
-        if (!Array.isArray(group)) return;
+        if (!Array.isArray(group) || !studentId) return;
         cls.separationGroups[groupIndex] = group.filter(id => id !== studentId);
         cls.separationGroups = cls.separationGroups.filter(entry => entry.length >= 2);
         syncLegacySeparationPool(cls);
