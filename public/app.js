@@ -947,6 +947,9 @@
     for (const input of els.seatPaletteInputs || []) {
       input.checked = input.value === state.displaySettings.palette;
     }
+    if (els.attendanceReminderEnabled) {
+      els.attendanceReminderEnabled.checked = state.attendanceReminderEnabled !== false;
+    }
 
     renderFixedSeatControls();
     renderSeparationControls();
@@ -1011,6 +1014,10 @@
     if (!student) return;
     cls.students = cls.students.filter(s => s.id !== studentId);
     cls.separationPool = (cls.separationPool || []).filter(id => id !== studentId);
+    cls.separationGroups = (cls.separationGroups || [])
+      .map(group => group.filter(id => id !== studentId))
+      .filter(group => group.length >= 2);
+    syncLegacySeparationPool(cls);
     cls.buddyGroups = (cls.buddyGroups || []).map(group => group.filter(id => id !== studentId)).filter(group => group.length >= 2);
     delete cls.tableHistory?.[studentId];
     repairSeats(cls);
@@ -1020,34 +1027,120 @@
     showToast(`${student.name} removed from ${cls.name}.`);
   }
 
+  function separationGroupsForClass(cls) {
+    if (!cls) return [];
+    const groups = Array.isArray(cls.separationGroups) ? cls.separationGroups : [];
+    const validIds = new Set(cls.students.map(student => student.id));
+    const cleaned = groups
+      .filter(Array.isArray)
+      .map(group => [...new Set(group.map(String))].filter(id => validIds.has(id)))
+      .filter(group => group.length >= 2);
+    if (cleaned.length) return cleaned;
+
+    const legacy = [...new Set((cls.separationPool || []).map(String))].filter(id => validIds.has(id));
+    return legacy.length >= 2 ? [legacy] : [];
+  }
+
+  function syncLegacySeparationPool(cls) {
+    if (!cls) return;
+    cls.separationGroups = separationGroupsForClass(cls).map(group => [...group]);
+    cls.separationPool = [...new Set(cls.separationGroups.flat())];
+  }
+
+  function separationGroupsForStudent(cls, studentId) {
+    return separationGroupsForClass(cls).filter(group => group.includes(studentId));
+  }
+
+  function separationGroupConflictsWithBuddy(cls, group) {
+    const set = new Set(group);
+    return (cls.buddyGroups || []).some(buddy => buddy.filter(id => set.has(id)).length > 1);
+  }
+
+  function ensureSeparationDraft(cls) {
+    if (!cls) {
+      separationDraftClassId = null;
+      separationDraftIds = [];
+      return;
+    }
+    if (separationDraftClassId !== cls.id) {
+      separationDraftClassId = cls.id;
+      separationDraftIds = [];
+    }
+    const liveIds = new Set(cls.students.map(student => student.id));
+    separationDraftIds = separationDraftIds.filter(id => liveIds.has(id));
+  }
+
   function renderSeparationControls() {
     const cls = activeClass();
     if (!cls) {
       els.separationPoolStudent.innerHTML = '<option value="">Create a class first…</option>';
       els.addSeparationPoolBtn.disabled = true;
+      els.createSeparationGroupBtn.disabled = true;
+      els.separationDraftList.innerHTML = '';
       els.separationPoolList.innerHTML = '<div class="empty-state">No class selected.</div>';
       return;
     }
-    const pool = new Set(cls.separationPool || []);
-    const available = cls.students.filter(student => !pool.has(student.id));
+
+    ensureSeparationDraft(cls);
+    const draftSet = new Set(separationDraftIds);
+    const available = cls.students.filter(student => !draftSet.has(student.id));
     els.separationPoolStudent.innerHTML = '<option value="">Choose student…</option>' +
       available.map(student => `<option value="${escapeHtml(student.id)}">${escapeHtml(student.name)}</option>`).join('');
     els.addSeparationPoolBtn.disabled = !available.length;
+    els.createSeparationGroupBtn.disabled = separationDraftIds.length < 2;
 
-    if (!pool.size) {
-      els.separationPoolList.innerHTML = '<div class="empty-state">No students in the separation pool.</div>';
+    if (separationDraftIds.length) {
+      els.separationDraftList.innerHTML = `<div class="separation-draft-card"><strong>New group</strong><div class="separation-chip-row">${separationDraftIds.map(studentId => {
+        const student = cls.students.find(entry => entry.id === studentId);
+        return student ? `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-separation-draft="${escapeHtml(studentId)}" aria-label="Remove ${escapeHtml(student.name)} from new group">×</button></span>` : '';
+      }).join('')}</div></div>`;
+      $$('[data-remove-separation-draft]', els.separationDraftList).forEach(button => {
+        button.addEventListener('click', () => {
+          separationDraftIds = separationDraftIds.filter(id => id !== button.dataset.removeSeparationDraft);
+          renderSeparationControls();
+        });
+      });
+    } else {
+      els.separationDraftList.innerHTML = '<div class="empty-state compact-empty">Add at least two students, then create the group.</div>';
+    }
+
+    const groups = separationGroupsForClass(cls);
+    cls.separationGroups = groups.map(group => [...group]);
+    if (!groups.length) {
+      els.separationPoolList.innerHTML = '<div class="empty-state">No separation groups for this class.</div>';
       return;
     }
 
-    els.separationPoolList.innerHTML = [...pool].map(studentId => {
-      const student = cls.students.find(s => s.id === studentId);
-      if (!student) return '';
-      return `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-pool-student="${escapeHtml(student.id)}" aria-label="Remove ${escapeHtml(student.name)} from separation pool">×</button></span>`;
+    els.separationPoolList.innerHTML = groups.map((group, groupIndex) => {
+      const chips = group.map(studentId => {
+        const student = cls.students.find(entry => entry.id === studentId);
+        if (!student) return '';
+        return `<span class="rule-chip">${escapeHtml(student.name)}<button type="button" data-remove-separation-member="${groupIndex}:${escapeHtml(studentId)}" aria-label="Remove ${escapeHtml(student.name)} from separation group ${groupIndex + 1}">×</button></span>`;
+      }).join('');
+      return `<div class="separation-group-card">
+        <div class="separation-group-heading"><strong>Group ${groupIndex + 1}</strong><button class="text-button danger-text" type="button" data-remove-separation-group="${groupIndex}">Remove group</button></div>
+        <div class="separation-chip-row">${chips}</div>
+      </div>`;
     }).join('');
 
-    $$('[data-remove-pool-student]', els.separationPoolList).forEach(button => {
+    $$('[data-remove-separation-group]', els.separationPoolList).forEach(button => {
       button.addEventListener('click', () => {
-        cls.separationPool = cls.separationPool.filter(id => id !== button.dataset.removePoolStudent);
+        cls.separationGroups.splice(Number(button.dataset.removeSeparationGroup), 1);
+        syncLegacySeparationPool(cls);
+        saveState();
+        renderSeparationControls();
+      });
+    });
+
+    $$('[data-remove-separation-member]', els.separationPoolList).forEach(button => {
+      button.addEventListener('click', () => {
+        const [groupText, studentId] = String(button.dataset.removeSeparationMember || '').split(':');
+        const groupIndex = Number(groupText);
+        const group = cls.separationGroups[groupIndex];
+        if (!Array.isArray(group)) return;
+        cls.separationGroups[groupIndex] = group.filter(id => id !== studentId);
+        cls.separationGroups = cls.separationGroups.filter(entry => entry.length >= 2);
+        syncLegacySeparationPool(cls);
         saveState();
         renderSeparationControls();
       });
@@ -1058,17 +1151,39 @@
     const cls = activeClass();
     const studentId = els.separationPoolStudent.value;
     if (!cls || !studentId) return showToast('Choose a student first.');
-    cls.separationPool = Array.isArray(cls.separationPool) ? cls.separationPool : [];
-    if (cls.separationPool.includes(studentId)) return showToast('That student is already in the separation pool.');
-    const buddyGroup = (cls.buddyGroups || []).find(group => group.includes(studentId));
-    if (buddyGroup) {
-      const otherInPool = buddyGroup.find(id => id !== studentId && cls.separationPool.includes(id));
-      if (otherInPool) return showToast('Two students in the same buddy group cannot both be in the separation pool.');
+    ensureSeparationDraft(cls);
+    if (separationDraftIds.includes(studentId)) return;
+
+    const proposed = [...separationDraftIds, studentId];
+    if (separationGroupConflictsWithBuddy(cls, proposed)) {
+      return showToast('Students in the same buddy group cannot also be in the same separation group.');
     }
-    cls.separationPool.push(studentId);
+
+    separationDraftIds = proposed;
+    renderSeparationControls();
+  }
+
+  function createSeparationGroup() {
+    const cls = activeClass();
+    if (!cls) return;
+    ensureSeparationDraft(cls);
+    const group = [...new Set(separationDraftIds)];
+    if (group.length < 2) return showToast('Add at least two students to create a separation group.');
+    if (separationGroupConflictsWithBuddy(cls, group)) {
+      return showToast('Students in the same buddy group cannot also be in the same separation group.');
+    }
+
+    cls.separationGroups = separationGroupsForClass(cls).map(entry => [...entry]);
+    const signature = [...group].sort().join('|');
+    if (cls.separationGroups.some(entry => [...entry].sort().join('|') === signature)) {
+      return showToast('That separation group already exists.');
+    }
+    cls.separationGroups.push(group);
+    syncLegacySeparationPool(cls);
+    separationDraftIds = [];
     saveState();
     renderSeparationControls();
-    showToast('Student added to the separation pool.');
+    showToast(`Separation group of ${group.length} created.`);
   }
 
   function renderBuddyControls() {
@@ -1120,8 +1235,9 @@
     cls.buddyGroups = Array.isArray(cls.buddyGroups) ? cls.buddyGroups : [];
     const alreadyGrouped = new Set(cls.buddyGroups.flat());
     if (group.some(id => alreadyGrouped.has(id))) return showToast('Each student can belong to only one buddy group.');
-    const pool = new Set(cls.separationPool || []);
-    if (group.filter(id => pool.has(id)).length > 1) return showToast('Only one student from a buddy group can be in the separation pool.');
+    if (separationGroupsForClass(cls).some(separationGroup => group.filter(id => separationGroup.includes(id)).length > 1)) {
+      return showToast('Students cannot be in the same buddy group and the same separation group.');
+    }
     cls.buddyGroups.push(group);
     saveState();
     renderBuddyControls();
@@ -2230,6 +2346,12 @@
     els.csvFileInput.value = '';
   });
   els.addSeparationPoolBtn.addEventListener('click', addSeparationPoolStudent);
+  els.createSeparationGroupBtn.addEventListener('click', createSeparationGroup);
+  els.attendanceReminderEnabled?.addEventListener('change', () => {
+    state.attendanceReminderEnabled = els.attendanceReminderEnabled.checked;
+    if (!state.attendanceReminderEnabled) hideAttendanceReminder();
+    saveState();
+  });
   els.addBuddyBtn.addEventListener('click', addBuddyRule);
 
   // Close dialogs when clicking the dimmed backdrop.
