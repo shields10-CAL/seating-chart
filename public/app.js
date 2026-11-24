@@ -1523,6 +1523,7 @@
     });
 
     cls.separationPool = [...pool];
+    cls.separationGroups = pool.size >= 2 ? [[...pool]] : [];
     cls.buddyGroups = [];
     cls.tableHistory = {};
     saveState();
