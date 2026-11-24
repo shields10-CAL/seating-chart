@@ -112,7 +112,10 @@
     fixedSeatList: $('#fixedSeatList'),
     separationPoolStudent: $('#separationPoolStudent'),
     addSeparationPoolBtn: $('#addSeparationPoolBtn'),
+    createSeparationGroupBtn: $('#createSeparationGroupBtn'),
+    separationDraftList: $('#separationDraftList'),
     separationPoolList: $('#separationPoolList'),
+    attendanceReminderEnabled: $('#attendanceReminderEnabled'),
     buddyStudentA: $('#buddyStudentA'),
     buddyStudentB: $('#buddyStudentB'),
     buddyStudentC: $('#buddyStudentC'),
@@ -197,13 +200,14 @@
 
   function initialState() {
     return {
-      version: 10,
+      version: 11,
       dayType: 'A',
       dayOverride: 'auto',
       scheduleOverride: 'auto',
       sidebarWidth: 292,
       sidebarCollapsed: false,
       displaySettings: { colorStyle: 'stroke', palette: 'muted' },
+      attendanceReminderEnabled: true,
       activeClassId: '',
       attendanceStatus: { dismissedPeriodKey: '' },
       classes: {}
@@ -247,6 +251,20 @@
         const cleaned = history.map(item => String(item)).filter(Boolean).slice(-TABLE_HISTORY_LIMIT);
         if (cleaned.length) tableHistory[studentId] = cleaned;
       }
+      const legacySeparationPool = (Array.isArray(value.separationPool) ? value.separationPool.map(String) : legacyPool)
+        .filter((studentId, index, list) => validStudentIds.has(studentId) && list.indexOf(studentId) === index);
+      const separationGroups = [];
+      if (Array.isArray(value.separationGroups)) {
+        for (const rawGroup of value.separationGroups) {
+          if (!Array.isArray(rawGroup)) continue;
+          const group = [...new Set(rawGroup.map(String))].filter(studentId => validStudentIds.has(studentId));
+          if (group.length >= 2) separationGroups.push(group);
+        }
+      }
+      if (!separationGroups.length && legacySeparationPool.length >= 2) {
+        separationGroups.push([...legacySeparationPool]);
+      }
+
       normalizedClasses[id] = {
         id,
         name: String(value.name || id),
@@ -255,8 +273,9 @@
         layoutSourceClassId: typeof value.layoutSourceClassId === 'string' && value.layoutSourceClassId.trim()
           ? value.layoutSourceClassId.trim()
           : null,
-        separationPool: (Array.isArray(value.separationPool) ? value.separationPool.map(String) : legacyPool)
-          .filter((studentId, index, list) => validStudentIds.has(studentId) && list.indexOf(studentId) === index),
+        // Retain the original flat field for rollback compatibility.
+        separationPool: legacySeparationPool,
+        separationGroups,
         buddyGroups,
         tableHistory
       };
@@ -278,7 +297,7 @@
 
     const requestedActive = String(candidate.activeClassId || '');
     return {
-      version: 10,
+      version: 11,
       dayType: candidate.dayType === 'B' ? 'B' : 'A',
       dayOverride: ['auto', 'A', 'B'].includes(candidate.dayOverride) ? candidate.dayOverride : 'auto',
       sidebarWidth: Math.min(420, Math.max(190, Number(candidate.sidebarWidth) || 292)),
@@ -287,6 +306,7 @@
         colorStyle: candidate.displaySettings?.colorStyle === 'fill' ? 'fill' : 'stroke',
         palette: candidate.displaySettings?.palette === 'contrast' ? 'contrast' : 'muted'
       },
+      attendanceReminderEnabled: candidate.attendanceReminderEnabled !== false,
       scheduleOverride: ['auto', 'allPeriods', 'twoHour'].includes(candidate.scheduleOverride) ? candidate.scheduleOverride : 'auto',
       activeClassId: normalizedClasses[requestedActive] ? requestedActive : (Object.keys(normalizedClasses)[0] || ''),
       attendanceStatus: {
@@ -352,6 +372,8 @@
   let attendanceAudioContext = null;
   let attendanceRuntime = { periodKey: null, lastDingMarker: '' };
   let attendanceStatus = state.attendanceStatus || { dismissedPeriodKey: '' };
+  let separationDraftClassId = null;
+  let separationDraftIds = [];
 
   function activeClass() {
     return state.classes[state.activeClassId];
@@ -1133,7 +1155,7 @@
     const duplicate = Object.values(state.classes).some(c => c.name.toLowerCase() === name.toLowerCase());
     if (duplicate) return showToast('A class with that name already exists.');
     const id = makeId('class');
-    state.classes[id] = { id, name, students: [], layout: null, layoutSourceClassId: null, separationPool: [], buddyGroups: [], tableHistory: {} };
+    state.classes[id] = { id, name, students: [], layout: null, layoutSourceClassId: null, separationPool: [], separationGroups: [], buddyGroups: [], tableHistory: {} };
     state.activeClassId = id;
     saveState();
     els.newClassDialog.close();
