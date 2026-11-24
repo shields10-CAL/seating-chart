@@ -1638,7 +1638,7 @@
     return map;
   }
 
-  function validateFixedRules(cls, byId, poolIds, buddyGroups) {
+  function validateFixedRules(cls, byId, separationGroups, buddyGroups) {
     const fixedSeats = new Set();
     for (const student of cls.students.filter(student => student.fixed)) {
       if (!validSeat(student.seat, cls)) return `${student.name} has an invalid fixed seat.`;
@@ -1646,13 +1646,17 @@
       fixedSeats.add(Number(student.seat));
     }
 
-    for (let i = 0; i < poolIds.length; i++) {
-      const a = byId.get(poolIds[i]);
-      if (!a?.fixed) continue;
-      for (let j = i + 1; j < poolIds.length; j++) {
-        const b = byId.get(poolIds[j]);
-        if (!b?.fixed) continue;
-        if (!separationPairAllowed(cls, a.seat, b.seat)) return `${a.name} and ${b.name} have fixed seats that are too close for the separation pool.`;
+    for (const group of separationGroups) {
+      for (let i = 0; i < group.length; i++) {
+        const a = byId.get(group[i]);
+        if (!a?.fixed) continue;
+        for (let j = i + 1; j < group.length; j++) {
+          const b = byId.get(group[j]);
+          if (!b?.fixed) continue;
+          if (!separationPairAllowed(cls, a.seat, b.seat)) {
+            return `${a.name} and ${b.name} have fixed seats that are too close for their separation group.`;
+          }
+        }
       }
     }
 
@@ -1672,20 +1676,29 @@
     const byId = new Map(cls.students.map(student => [student.id, student]));
     const seatInfos = layoutSeatInfos(cls);
     const allSeats = seatInfos.map(info => info.number);
-    const poolIds = [...new Set((cls.separationPool || []).filter(id => byId.has(id)))];
-    const poolSet = new Set(poolIds);
+    const separationGroups = separationGroupsForClass(cls)
+      .map(group => group.filter(id => byId.has(id)))
+      .filter(group => group.length >= 2);
+    const separatedIds = [...new Set(separationGroups.flat())];
+    const separatedSet = new Set(separatedIds);
     const buddyGroups = (cls.buddyGroups || []).filter(group => Array.isArray(group) && group.length >= 2 && group.length <= 3 && group.every(id => byId.has(id)));
     const buddyMap = buddyGroupMap({ ...cls, buddyGroups });
 
-    for (const group of buddyGroups) {
-      if (group.filter(id => poolSet.has(id)).length > 1) return { error: 'Only one student from a buddy group can be in the separation pool.' };
+    for (const buddyGroup of buddyGroups) {
+      if (separationGroups.some(group => buddyGroup.filter(id => group.includes(id)).length > 1)) {
+        return { error: 'Students cannot be in the same buddy group and the same separation group.' };
+      }
     }
 
     const tableIds = new Set(seatInfos.map(info => info.tableId).filter(Boolean));
-    if (tableIds.size && poolIds.length > tableIds.size) return { error: `The separation pool has ${poolIds.length} students but the drawn room has only ${tableIds.size} table groups.` };
+    for (const group of separationGroups) {
+      if (tableIds.size && group.length > tableIds.size) {
+        return { error: `A separation group has ${group.length} students but the drawn room has only ${tableIds.size} table groups.` };
+      }
+    }
     if (buddyGroups.length && !tableIds.size) return { error: 'Buddy groups require table objects in the seating chart.' };
 
-    const fixedRuleError = validateFixedRules(cls, byId, poolIds, buddyGroups);
+    const fixedRuleError = validateFixedRules(cls, byId, separationGroups, buddyGroups);
     if (fixedRuleError) return { error: fixedRuleError };
 
     const fixed = cls.students.filter(student => student.fixed);
@@ -1694,7 +1707,7 @@
     const movingStudents = cls.students.filter(student => !student.fixed);
     const currentSeatById = new Map(cls.students.map(student => [student.id, Number(student.seat)]));
     const recentTablesById = new Map(movingStudents.map(student => [student.id, recentTablesForStudent(cls, student.id)]));
-    const currentPoolSeatSet = new Set(poolIds.map(id => currentSeatById.get(id)).filter(seat => validSeat(seat, cls)));
+    const currentSeparatedSeatSet = new Set(separatedIds.map(id => currentSeatById.get(id)).filter(seat => validSeat(seat, cls)));
     const candidates = [];
     const maxRestarts = 90;
     const maxNodes = 120000;
@@ -1706,7 +1719,7 @@
         const group = buddyMap.get(student.id);
         const fixedBuddy = group?.some(id => byId.get(id)?.fixed);
         let weight = randomFloat();
-        if (poolSet.has(student.id)) weight += 12;
+        if (separatedSet.has(student.id)) weight += 12;
         if (group) weight += 7;
         if (fixedBuddy) weight += 14;
         return { student, weight };
@@ -1716,10 +1729,13 @@
         const info = seatInfoFor(cls, seat);
         if (!info) return false;
 
-        if (poolSet.has(student.id)) {
-          for (const otherId of poolIds) {
-            if (otherId === student.id || !placements.has(otherId)) continue;
-            if (!separationPairAllowed(cls, seat, placements.get(otherId))) return false;
+        if (separatedSet.has(student.id)) {
+          for (const separationGroup of separationGroups) {
+            if (!separationGroup.includes(student.id)) continue;
+            for (const otherId of separationGroup) {
+              if (otherId === student.id || !placements.has(otherId)) continue;
+              if (!separationPairAllowed(cls, seat, placements.get(otherId))) return false;
+            }
           }
         }
 
@@ -1749,11 +1765,15 @@
           if (seat === oldSeat) penalty += 28;
           if (oldTable && candidateTable === oldTable) penalty += 9;
           penalty += tableHistoryPenalty(recentTablesById.get(student.id) || [], candidateTable);
-          if (poolSet.has(student.id)) {
-            if (currentPoolSeatSet.has(seat)) penalty += 4;
-            const placedPoolSeats = poolIds.filter(id => placements.has(id)).map(id => placements.get(id));
-            if (placedPoolSeats.length) {
-              const minDistance = Math.min(...placedPoolSeats.map(otherSeat => seatDistanceSquared(cls, seat, otherSeat)));
+          if (separatedSet.has(student.id)) {
+            if (currentSeparatedSeatSet.has(seat)) penalty += 4;
+            const relatedIds = [...new Set(separationGroups
+              .filter(group => group.includes(student.id))
+              .flat()
+              .filter(id => id !== student.id))];
+            const placedRelatedSeats = relatedIds.filter(id => placements.has(id)).map(id => placements.get(id));
+            if (placedRelatedSeats.length) {
+              const minDistance = Math.min(...placedRelatedSeats.map(otherSeat => seatDistanceSquared(cls, seat, otherSeat)));
               penalty -= Math.min(8, minDistance * .18);
             }
           }
@@ -1786,8 +1806,14 @@
         if (history.length && !history.includes(String(newTable))) novelty += 3;
         novelty -= tableHistoryPenalty(history, newTable) * .55;
       }
-      const poolGeometry = poolScore(cls, placements, poolIds);
-      if (Number.isFinite(poolGeometry.min)) novelty += poolGeometry.min * .12 + poolGeometry.total * .015;
+      let separationMin = Infinity;
+      let separationTotal = 0;
+      for (const group of separationGroups) {
+        const geometry = poolScore(cls, placements, group);
+        if (Number.isFinite(geometry.min)) separationMin = Math.min(separationMin, geometry.min);
+        separationTotal += geometry.total;
+      }
+      if (Number.isFinite(separationMin)) novelty += separationMin * .12 + separationTotal * .015;
       candidates.push({ placements: new Map(placements), novelty });
     }
 
@@ -1799,10 +1825,12 @@
   }
 
   function seatingRulesSatisfied(cls, placements) {
-    const poolIds = [...new Set((cls.separationPool || []).filter(id => placements.has(id)))];
-    for (let i = 0; i < poolIds.length; i++) {
-      for (let j = i + 1; j < poolIds.length; j++) {
-        if (!separationPairAllowed(cls, placements.get(poolIds[i]), placements.get(poolIds[j]))) return false;
+    for (const group of separationGroupsForClass(cls)) {
+      const ids = group.filter(id => placements.has(id));
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          if (!separationPairAllowed(cls, placements.get(ids[i]), placements.get(ids[j]))) return false;
+        }
       }
     }
     for (const group of cls.buddyGroups || []) {
